@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+
+{% block title %}{{ book.title }} - Thư Viện Tri Thức{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="/static/css/book-detail.css">
+<style>
+    /* Additional custom styles for enhanced book detail page */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .badge-success {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+    }
+    
+    .badge-warning {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+    }
+    
+    .badge-danger {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+    }
+    
+    .book-stats {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+    
+    .stat-item {
+        background: white;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        text-align: center;
+        min-width: 120px;
+    }
+    
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #667eea;
+        display: block;
+    }
+    
+    .stat-label {
+        font-size: 0.8rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .category-tags {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+    
+    .category-tag {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .category-tag:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        text-decoration: none;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Enhanced Breadcrumb -->
+    <nav class="breadcrumb">
+        <a href="/">🏠 Trang chủ</a> &gt; 
+        {% if book.categories|length > 0 %}
+        <a href="/categories/{{ book.categories[0].id }}">📚 {{ book.categories[0].name }}</a> &gt; 
+        {% endif %}
+        <span>📖 {{ book.title }}</span>
+    </nav>
+
+    <!-- Enhanced Book Detail -->
+    <div class="book-detail" 
+         data-id="{{ book.id }}" 
+         data-title="{{ book.title }}" 
+         data-author="{{ book.author.name }}" 
+         data-image="{{ book.cover_image if book.cover_image else '/static/images/book_default.jpg' }}">
+        <div class="book-cover">
+            <img src="{{ book.cover_image if book.cover_image else '/static/images/book_default.jpg' }}" alt="{{ book.title }}">
+        </div>
+        <div class="book-info">
+            <h1 class="book-title">{{ book.title }}</h1>
+            <div class="book-author">{{ book.author.name }}</div>
+
+            <!-- Category Tags -->
+            {% if book.categories %}
+            <div class="category-tags">
+                {% for category in book.categories %}
+                <a href="/categories/{{ category.id }}" class="category-tag">
+                    {{ category.name }}
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Book Statistics -->
+            <div class="book-stats">
+                <div class="stat-item">
+                    <span class="stat-number">{{ book.publication_year }}</span>
+                    <span class="stat-label">Năm XB</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{{ book.pages }}</span>
+                    <span class="stat-label">Trang</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{{ book.available_copies }}</span>
+                    <span class="stat-label">Còn lại</span>
+                </div>
+            </div>
+
+            <!-- Enhanced Book Meta -->
+            <div class="book-meta">
+                <div class="meta-item">
+                    <span class="meta-label">📚 Thể loại</span>
+                    <span class="meta-value">
+                        {% for category in book.categories %}
+                            {{ category.name }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">📅 Năm xuất bản</span>
+                    <span class="meta-value">{{ book.publication_year }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">📄 Số trang</span>
+                    <span class="meta-value">{{ book.pages }} trang</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">🌐 Ngôn ngữ</span>
+                    <span class="meta-value">{{ book.language }}</span>
+                </div>
+            </div>
+
+            <!-- Enhanced Book Actions -->
+            <div class="book-actions">
+                {% if book.is_borrowed_by_user %}
+                <button class="btn btn-secondary" disabled>
+                    <i class="fas fa-check-circle"></i> Đã mượn sách này
+                </button>
+                {% elif book.available_copies > 0 %}
+                <button id="add-to-cart-btn" class="btn btn-outline-primary add-to-cart" 
+                        data-id="{{ book.id }}">
+                    <i class="fas fa-cart-plus"></i> Thêm vào đơn mượn
+                </button>
+                {% else %}
+                <button class="btn btn-secondary" disabled>
+                    <i class="fas fa-times-circle"></i> Hết sách
+                </button>
+                {% endif %}
+                <button id="save-btn" class="btn btn-secondary">
+                    <i class="fas fa-bookmark"></i> Lưu sách yêu thích
+                </button>
+            </div>
+
+            <!-- Enhanced Book Description -->
+            <div class="book-description">
+                <h2 class="section-title">📖 Giới thiệu sách</h2>
+                <div class="description-text">
+                    <p>{{ book.description or "Chưa có mô tả cho cuốn sách này." }}</p>
+                </div>
+            </div>
+
+            <!-- Enhanced Book Details Section -->
+            <div class="book-details-section">
+                <h2 class="section-title">📋 Thông tin chi tiết</h2>
+                <table class="details-table">
+                    <tr>
+                        <td>Tác giả</td>
+                        <td>{{ book.author.name }}</td>
+                    </tr>
+                    <tr>
+                        <td>Nhà xuất bản</td>
+                        <td>{{ book.publisher.name }}</td>
+                    </tr>
+                    <tr>
+                        <td>Năm xuất bản</td>
+                        <td>{{ book.publication_year }}</td>
+                    </tr>
+                    <tr>
+                        <td>Số trang</td>
+                        <td>{{ book.pages }} trang</td>
+                    </tr>
+                    <tr>
+                        <td>Ngôn ngữ</td>
+                        <td>{{ book.language }}</td>
+                    </tr>
+                    <tr>
+                        <td>ISBN</td>
+                        <td>{{ book.isbn }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tình trạng</td>
+                        <td>
+                            {% if book.available_copies > 0 %}
+                                <span class="badge badge-success">
+                                    <i class="fas fa-check"></i> Có sẵn
+                                </span>
+                            {% else %}
+                                <span class="badge badge-danger">
+                                    <i class="fas fa-times"></i> Hết sách
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Enhanced Availability Status -->
+                <div class="availability {% if book.available_copies <= 0 %}unavailable{% endif %}">
+                    <div>
+                        {% if book.available_copies > 0 %}
+                        <span class="available">Còn {{ book.available_copies }} bản có thể mượn</span>
+                        {% else %}
+                        <span class="unavailable">Hiện tại hết sách</span>
+                        {% endif %}
+                    </div>
+                    {% if book.available_copies > 0 and not book.is_borrowed_by_user %}
+                    <button class="btn btn-primary add-to-cart" 
+                            data-id="{{ book.id }}" 
+                            data-title="{{ book.title }}" 
+                            data-author="{{ book.author.name }}" 
+                            data-image="{{ book.cover_image if book.cover_image else '/static/images/book_default.jpg' }}">
+                        <i class="fas fa-plus"></i> Thêm vào đơn ngay
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Related Books Section -->
+    <div class="related-books">
+        <h2 class="related-title">📚 Sách cùng thể loại</h2>
+        <div class="books-grid">
+            {% for related_book in related_books %}
+            <a href="/books/{{ related_book.id }}" class="book-card">
+                <div class="book-card-cover">
+                    <img src="{{ related_book.cover_image if related_book.cover_image else '/static/images/book_default.jpg' }}" 
+                         alt="{{ related_book.title }}"
+                         loading="lazy">
+                </div>
+                <div class="book-card-info">
+                    <div class="book-card-title">{{ related_book.title }}</div>
+                    <div class="book-card-author">{{ related_book.author.name }}</div>
+                    {% if related_book.available_copies > 0 %}
+                    <span class="badge badge-success" style="margin-top: 0.5rem; align-self: flex-start;">
+                        <i class="fas fa-check"></i> Có sẵn
+                    </span>
+                    {% else %}
+                    <span class="badge badge-warning" style="margin-top: 0.5rem; align-self: flex-start;">
+                        <i class="fas fa-clock"></i> Hết sách
+                    </span>
+                    {% endif %}
+                </div>
+            </a>
+            {% else %}
+            <div class="no-related-books">
+                <i class="fas fa-book" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                <p>Không tìm thấy sách liên quan</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var borrowBtn = document.getElementById('borrow-btn');
+        var borrowNowBtn = document.getElementById('borrow-now-btn');
+        var saveBtn = document.getElementById('save-btn');
+        var addToCartBtn = document.getElementById('add-to-cart-btn');
+        
+        // These variables are populated by the Jinja2 template engine
+        var bookId = {{ book.id }};
+        var isLoggedIn = {{ user_authenticated|default(false)|tojson }};
+        var isAlreadyBorrowed = {{ book.is_borrowed_by_user|default(false)|tojson }};
+        
+        // Handle borrow book events
+        if (borrowBtn) {
+            borrowBtn.addEventListener('click', function() {
+                handleBorrowBook();
+            });
+        }
+        
+        if (borrowNowBtn) {
+            borrowNowBtn.addEventListener('click', function() {
+                handleBorrowBook();
+            });
+        }
+        
+        // Add to cart button in detail page
+        if (addToCartBtn) {
+            addToCartBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                // The cart.js script will handle the authentication check and adding to cart
+            });
+        }
+        
+        // Handle save book event
+        if (saveBtn) {
+            saveBtn.addEventListener('click', function() {
+                // Show a nice notification instead of alert
+                showNotification('Tính năng lưu sách đang được phát triển.', 'info');
+            });
+        }
+        
+        // Function to handle borrowing books
+        function handleBorrowBook() {
+            if (!isLoggedIn) {
+                showNotification('Bạn cần đăng nhập để mượn sách!', 'warning');
+                setTimeout(function() {
+                    window.location.href = '/login?next=/books/' + bookId;
+                }, 1500);
+                return;
+            }
+            
+            // Send API request to borrow book
+            fetch('/api/books/borrow', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    book_id: bookId
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.message) {
+                    showNotification(data.message, data.success ? 'success' : 'error');
+                    if (data.success) {
+                        // Update UI after successful borrowing
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1500);
+                    }
+                }
+            })
+            .catch(function(error) {
+                console.error('Error:', error);
+                showNotification('Đã xảy ra lỗi khi mượn sách. Vui lòng thử lại sau.', 'error');
+            });
+        }
+        
+        // Simple notification function
+        function showNotification(message, type) {
+            var notification = document.createElement('div');
+            notification.className = 'notification notification-' + type;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                color: white;
+                font-weight: 500;
+                z-index: 1000;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                animation: slideIn 0.3s ease;
+            `;
+            
+            switch(type) {
+                case 'success':
+                    notification.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    break;
+                case 'error':
+                    notification.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                    break;
+                case 'warning':
+                    notification.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                    break;
+                default:
+                    notification.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+            }
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(function() {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(function() {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
+        // Add CSS animations
+        var style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    });
+</script>
+{% endblock %}

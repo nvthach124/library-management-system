@@ -1,0 +1,850 @@
+<header class="main-header">
+    <div class="container">
+        <div class="header-content">
+            <div class="logo-area">
+                <a href="/" class="logo">
+                    <i class="fas fa-book"></i>
+                    <span>Thư Viện Tri Thức</span>
+                </a>
+            </div>
+            
+            <nav class="main-nav">
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="/" class="nav-link {% if active_page == 'home' %}active{% endif %}">
+                            <span ><i class="fas fa-home"></i> Trang chủ</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/search" class="nav-link {% if active_page == 'search' %}active{% endif %}">
+                            
+                            <span><i class="fas fa-search"></i> Tìm kiếm</span>
+                        </a>
+                    </li>
+                    {% if current_user %}
+                    <li class="nav-item">
+                        <a href="/borrow" class="nav-link {% if active_page == 'borrow' %}active{% endif %}">
+                            
+                            <span><i class="fas fa-book-reader"></i> Mượn sách</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/my-borrows" class="nav-link {% if active_page == 'my-borrows' %}active{% endif %}">
+                           
+                            <span> <i class="fas fa-clipboard-list"></i> Sách đã mượn</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            
+            <div class="user-actions">
+                {% if current_user %}
+                <div class="notification-dropdown">
+                    <button class="notification-btn" id="notification-btn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notification-count">0</span>
+                    </button>
+                    <div class="dropdown-content" id="notification-dropdown">
+                        <div class="dropdown-header">
+                            <h4>Thông báo</h4>
+                            <button id="mark-all-read-btn" class="mark-all-read">
+                                <i class="fas fa-check-double"></i> Đánh dấu tất cả đã đọc
+                            </button>
+                        </div>
+                        <div class="notifications-list" id="notifications-list">
+                            <div class="loading">
+                                <i class="fas fa-spinner fa-spin"></i> Đang tải...
+                            </div>
+                        </div>
+                        <div class="dropdown-footer">
+                            <a href="/notifications" class="view-all">Xem tất cả</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="user-dropdown">
+                    <button class="user-btn">
+                        <div class="user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <span>{{ current_user.full_name }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="dropdown-content">
+                        <a href="/profile" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Tài khoản
+                        </a>
+                        {% if current_user.is_admin %}
+                        <a href="/admin/dashboard" class="dropdown-item">
+                            <i class="fas fa-user-shield"></i> Quản trị viên
+                        </a>
+                        {% endif %}
+                        <a href="/logout" class="dropdown-item">
+                            <i class="fas fa-sign-out-alt"></i> Đăng xuất
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                <div class="login-actions">
+                    <a href="/login" class="btn btn-login">
+                        <i class="fas fa-sign-in-alt"></i> Đăng nhập
+                    </a>
+                    <a href="/register" class="btn btn-register">
+                        <i class="fas fa-user-plus"></i> Đăng ký
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            
+            <button class="mobile-toggle" id="mobile-toggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </div>
+</header>
+
+{% if current_user %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Elements
+    const notificationBtn = document.getElementById('notification-btn');
+    const notificationDropdown = document.getElementById('notification-dropdown');
+    const notificationsList = document.getElementById('notifications-list');
+    const notificationCount = document.getElementById('notification-count');
+    const markAllReadBtn = document.getElementById('mark-all-read-btn');
+    const userDropdown = document.querySelector('.user-dropdown .dropdown-content');
+    const userBtn = document.querySelector('.user-btn');
+    const mobileToggle = document.getElementById('mobile-toggle');
+    const navMenu = document.querySelector('.nav-menu');
+    
+    // Event listeners
+    if (notificationBtn) {
+        notificationBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            notificationDropdown.classList.toggle('show');
+            
+            // Close user dropdown if open
+            if (userDropdown.classList.contains('show')) {
+                userDropdown.classList.remove('show');
+            }
+            
+            // Load notifications when dropdown is opened
+            if (notificationDropdown.classList.contains('show')) {
+                loadNotifications();
+            }
+        });
+    }
+    
+    if (userBtn) {
+        userBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+            
+            // Close notification dropdown if open
+            if (notificationDropdown.classList.contains('show')) {
+                notificationDropdown.classList.remove('show');
+            }
+        });
+    }
+    
+    if (mobileToggle) {
+        mobileToggle.addEventListener('click', function() {
+            navMenu.classList.toggle('show');
+        });
+    }
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.notification-dropdown') && notificationDropdown.classList.contains('show')) {
+            notificationDropdown.classList.remove('show');
+        }
+        
+        if (!e.target.closest('.user-dropdown') && userDropdown.classList.contains('show')) {
+            userDropdown.classList.remove('show');
+        }
+    });
+    
+    // Mark all notifications as read
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            markAllNotificationsRead();
+        });
+    }
+    
+    // Add event delegation for marking individual notifications as read
+    if (notificationsList) {
+        notificationsList.addEventListener('click', function(e) {
+            const readBtn = e.target.closest('.mark-read');
+            if (readBtn) {
+                e.preventDefault();
+                const notificationId = parseInt(readBtn.getAttribute('data-id'));
+                markNotificationRead(notificationId);
+            }
+            
+            const deleteBtn = e.target.closest('.delete-notification');
+            if (deleteBtn) {
+                e.preventDefault();
+                const notificationId = parseInt(deleteBtn.getAttribute('data-id'));
+                deleteNotification(notificationId);
+            }
+        });
+    }
+    
+    // Functions
+    function loadNotifications() {
+        notificationsList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
+        
+        fetch('/api/notifications?unread_only=true', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể tải thông báo');
+            }
+            return response.json();
+        })
+        .then(notifications => {
+            renderNotifications(notifications);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            notificationsList.innerHTML = '<div class="error">Không thể tải thông báo</div>';
+        });
+    }
+    
+    function renderNotifications(notifications) {
+        if (notifications.length === 0) {
+            notificationsList.innerHTML = '<div class="empty-notifications">Không có thông báo mới</div>';
+            return;
+        }
+        
+        let html = '';
+        notifications.forEach(notification => {
+            let typeClass = '';
+            let icon = '';
+            
+            if (notification.type === 'info') {
+                typeClass = 'info';
+                icon = 'info-circle';
+            } else if (notification.type === 'warning') {
+                typeClass = 'warning';
+                icon = 'exclamation-triangle';
+            } else if (notification.type === 'danger') {
+                typeClass = 'danger';
+                icon = 'exclamation-circle';
+            } else if (notification.type === 'success') {
+                typeClass = 'success';
+                icon = 'check-circle';
+            }
+            
+            html += `
+                <div class="notification-item ${typeClass}">
+                    <div class="notification-icon">
+                        <i class="fas fa-${icon}"></i>
+                    </div>
+                    <div class="notification-content">
+                        <h4 class="notification-title">${notification.title}</h4>
+                        <p class="notification-message">${notification.message}</p>
+                        <div class="notification-time">
+                            ${formatTimestamp(notification.created_at)}
+                        </div>
+                    </div>
+                    <div class="notification-actions">
+                        <button class="mark-read" data-id="${notification.id}" title="Đánh dấu đã đọc">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="delete-notification" data-id="${notification.id}" title="Xóa">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        notificationsList.innerHTML = html;
+    }
+    
+    function markNotificationRead(notificationId) {
+        fetch(`/api/notifications/${notificationId}/read`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể đánh dấu đã đọc');
+            }
+            return response.json();
+        })
+        .then(result => {
+            // Remove notification from the list
+            const notificationItem = notificationsList.querySelector(`.notification-item .mark-read[data-id="${notificationId}"]`).closest('.notification-item');
+            if (notificationItem) {
+                notificationItem.remove();
+            }
+            
+            // Update notifications count
+            updateNotificationCount();
+            
+            // Check if list is empty
+            if (notificationsList.querySelectorAll('.notification-item').length === 0) {
+                notificationsList.innerHTML = '<div class="empty-notifications">Không có thông báo mới</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    
+    function deleteNotification(notificationId) {
+        fetch(`/api/notifications/${notificationId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể xóa thông báo');
+            }
+            return response.json();
+        })
+        .then(result => {
+            // Remove notification from the list
+            const notificationItem = notificationsList.querySelector(`.notification-item .delete-notification[data-id="${notificationId}"]`).closest('.notification-item');
+            if (notificationItem) {
+                notificationItem.remove();
+            }
+            
+            // Update notifications count
+            updateNotificationCount();
+            
+            // Check if list is empty
+            if (notificationsList.querySelectorAll('.notification-item').length === 0) {
+                notificationsList.innerHTML = '<div class="empty-notifications">Không có thông báo mới</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    
+    function markAllNotificationsRead() {
+        fetch('/api/notifications/read-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể đánh dấu tất cả đã đọc');
+            }
+            return response.json();
+        })
+        .then(result => {
+            // Empty the list
+            notificationsList.innerHTML = '<div class="empty-notifications">Không có thông báo mới</div>';
+            
+            // Reset count
+            notificationCount.textContent = '0';
+            notificationCount.style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    
+    function updateNotificationCount() {
+        fetch('/api/notifications/unread-count', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể lấy số lượng thông báo');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const count = data.count;
+            notificationCount.textContent = count;
+            
+            if (count > 0) {
+                notificationCount.style.display = 'flex';
+            } else {
+                notificationCount.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    
+    function formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSec = Math.round(diffMs / 1000);
+        const diffMin = Math.round(diffSec / 60);
+        const diffHour = Math.round(diffMin / 60);
+        const diffDay = Math.round(diffHour / 24);
+        
+        if (diffSec < 60) {
+            return 'Vừa xong';
+        } else if (diffMin < 60) {
+            return `${diffMin} phút trước`;
+        } else if (diffHour < 24) {
+            return `${diffHour} giờ trước`;
+        } else if (diffDay < 7) {
+            return `${diffDay} ngày trước`;
+        } else {
+            return date.toLocaleDateString('vi-VN');
+        }
+    }
+    
+    // Initial load of notification count
+    updateNotificationCount();
+    
+    // Refresh notification count every minute
+    setInterval(updateNotificationCount, 60000);
+});
+</script>
+
+<style>
+.main-header {
+    background-color: white;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0;
+}
+
+.logo-area {
+    flex: 0 0 auto;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: var(--primary-color);
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.logo i {
+    margin-right: 0.5rem;
+    font-size: 1.75rem;
+}
+
+.main-nav {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.nav-menu {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-item {
+    margin: 0 0.5rem;
+}
+
+.nav-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    color: var(--text-dark);
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.nav-link i {
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.nav-link:hover, .nav-link.active {
+    color: var(--primary-color);
+    background-color: rgba(var(--primary-rgb), 0.05);
+}
+
+.user-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.notification-dropdown, .user-dropdown {
+    position: relative;
+}
+
+.notification-btn, .user-btn {
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.notification-btn {
+    position: relative;
+    font-size: 1.25rem;
+    color: var(--text-dark);
+}
+
+.notification-btn:hover {
+    color: var(--primary-color);
+    background-color: rgba(var(--primary-rgb), 0.05);
+}
+
+.notification-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: var(--danger-color);
+    color: white;
+    font-size: 0.75rem;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
+.user-btn {
+    gap: 0.5rem;
+    color: var(--text-dark);
+}
+
+.user-btn:hover {
+    color: var(--primary-color);
+    background-color: rgba(var(--primary-rgb), 0.05);
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dropdown-content {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: white;
+    width: 320px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: none;
+    overflow: hidden;
+    z-index: 1000;
+}
+
+.dropdown-content.show {
+    display: block;
+}
+
+.user-dropdown .dropdown-content {
+    width: 200px;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    text-decoration: none;
+    color: var(--text-dark);
+    transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+    background-color: rgba(var(--primary-rgb), 0.05);
+    color: var(--primary-color);
+}
+
+.dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dropdown-header h4 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.mark-all-read {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.notifications-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.loading, .error, .empty-notifications {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--text-light);
+}
+
+.loading i {
+    margin-right: 0.5rem;
+}
+
+.error {
+    color: var(--danger-color);
+}
+
+.notification-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s;
+}
+
+.notification-item:hover {
+    background-color: rgba(var(--primary-rgb), 0.02);
+}
+
+.notification-icon {
+    margin-right: 0.75rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.notification-item.info .notification-icon {
+    background-color: rgba(var(--info-rgb), 0.1);
+    color: var(--info-color);
+}
+
+.notification-item.warning .notification-icon {
+    background-color: rgba(var(--warning-rgb), 0.1);
+    color: var(--warning-color);
+}
+
+.notification-item.danger .notification-icon {
+    background-color: rgba(var(--danger-rgb), 0.1);
+    color: var(--danger-color);
+}
+
+.notification-item.success .notification-icon {
+    background-color: rgba(var(--success-rgb), 0.1);
+    color: var(--success-color);
+}
+
+.notification-content {
+    flex: 1;
+}
+
+.notification-title {
+    margin: 0 0 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.notification-message {
+    margin: 0 0 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-light);
+    line-height: 1.4;
+}
+
+.notification-time {
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+.notification-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-left: 0.75rem;
+}
+
+.notification-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-light);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.notification-actions button:hover {
+    background-color: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary-color);
+}
+
+.notification-actions .delete-notification:hover {
+    background-color: rgba(var(--danger-rgb), 0.1);
+    color: var(--danger-color);
+}
+
+.dropdown-footer {
+    padding: 0.75rem;
+    text-align: center;
+    border-top: 1px solid var(--border-color);
+}
+
+.view-all {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.view-all:hover {
+    text-decoration: underline;
+}
+
+.login-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-login, .btn-register {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-login {
+    color: var(--primary-color);
+    background-color: transparent;
+    border: 1px solid var(--primary-color);
+}
+
+.btn-login:hover {
+    background-color: rgba(var(--primary-rgb), 0.05);
+}
+
+.btn-register {
+    color: white;
+    background-color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+}
+
+.btn-register:hover {
+    background-color: var(--primary-dark);
+}
+
+.mobile-toggle {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-dark);
+    cursor: pointer;
+}
+
+@media (max-width: 991.98px) {
+    .main-nav {
+        display: none;
+    }
+    
+    .nav-menu.show {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: white;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding: 1rem;
+        z-index: 999;
+    }
+    
+    .mobile-toggle {
+        display: block;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .user-actions {
+        display: none;
+    }
+    
+    .user-actions.show {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: white;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding: 1rem;
+        z-index: 999;
+    }
+}
+</style>
+{% endif %} 
+ 

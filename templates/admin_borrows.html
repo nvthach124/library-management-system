@@ -1,0 +1,244 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Quản lý mượn trả sách - Thư Viện Tri Thức{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Thống kê đơn mượn -->
+            <div class="row mb-4">
+                <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+                    <div class="card">
+                        <div class="card-body p-3">
+                            <div class="row">
+                                <div class="col-8">
+                                    <div class="numbers">
+                                        <p class="text-sm mb-0 text-uppercase font-weight-bold">Chờ duyệt</p>
+                                        <h5 class="font-weight-bolder" id="pending-count">0</h5>
+                                    </div>
+                                </div>
+                                <div class="col-4 text-end">
+                                    <div class="icon icon-shape bg-gradient-warning shadow-warning text-center rounded-circle">
+                                        <i class="fas fa-hourglass-half text-lg opacity-10"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+                    <div class="card">
+                        <div class="card-body p-3">
+                            <div class="row">
+                                <div class="col-8">
+                                    <div class="numbers">
+                                        <p class="text-sm mb-0 text-uppercase font-weight-bold">Đang mượn</p>
+                                        <h5 class="font-weight-bolder" id="active-count">0</h5>
+                                    </div>
+                                </div>
+                                <div class="col-4 text-end">
+                                    <div class="icon icon-shape bg-gradient-info shadow-info text-center rounded-circle">
+                                        <i class="fas fa-book-reader text-lg opacity-10"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+                    <div class="card">
+                        <div class="card-body p-3">
+                            <div class="row">
+                                <div class="col-8">
+                                    <div class="numbers">
+                                        <p class="text-sm mb-0 text-uppercase font-weight-bold">Quá hạn</p>
+                                        <h5 class="font-weight-bolder" id="overdue-count">0</h5>
+                                    </div>
+                                </div>
+                                <div class="col-4 text-end">
+                                    <div class="icon icon-shape bg-gradient-danger shadow-danger text-center rounded-circle">
+                                        <i class="fas fa-exclamation-circle text-lg opacity-10"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-sm-6">
+                    <div class="card">
+                        <div class="card-body p-3">
+                            <div class="row">
+                                <div class="col-8">
+                                    <div class="numbers">
+                                        <p class="text-sm mb-0 text-uppercase font-weight-bold">Hoàn thành</p>
+                                        <h5 class="font-weight-bolder" id="completed-count">0</h5>
+                                    </div>
+                                </div>
+                                <div class="col-4 text-end">
+                                    <div class="icon icon-shape bg-gradient-success shadow-success text-center rounded-circle">
+                                        <i class="fas fa-check-circle text-lg opacity-10"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Danh sách đơn mượn -->
+            <div class="card mb-4">
+                <div class="card-header pb-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6>Quản lý đơn mượn sách</h6>
+                        <div class="d-flex">
+                            <div class="input-group me-2" style="width: 250px;">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" id="search-input" class="form-control" placeholder="Tìm kiếm theo tên người dùng...">
+                            </div>
+                            <select id="status-filter" class="form-select me-2">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="pending">Chờ duyệt</option>
+                                <option value="active">Đang mượn</option>
+                                <option value="overdue">Quá hạn</option>
+                                <option value="completed">Đã hoàn thành</option>
+                                <option value="cancelled">Đã hủy</option>
+                                <option value="rejected">Từ chối</option>
+                            </select>
+                            <button class="btn btn-primary btn-sm" id="refresh-btn">
+                                <i class="fas fa-sync-alt"></i> Làm mới
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body px-0 pt-0 pb-2">
+                    <div class="table-responsive p-0">
+                        <table class="table align-items-center mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Mã đơn</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Người mượn</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Ngày tạo</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Hạn trả</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Trạng thái</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Số sách</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-table-body">
+                                <!-- Dữ liệu sẽ được thêm vào đây bằng JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-center mt-3">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination" id="pagination">
+                                <!-- Phân trang sẽ được thêm vào đây bằng JavaScript -->
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal xem chi tiết đơn mượn -->
+    <div class="modal fade" id="orderDetailModal" tabindex="-1" aria-labelledby="orderDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="orderDetailModalLabel">Chi tiết đơn mượn</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="order-info mb-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Mã đơn:</strong> <span id="order-id"></span></p>
+                                <p><strong>Người mượn:</strong> <span id="order-user"></span></p>
+                                <p><strong>Email:</strong> <span id="order-email"></span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Ngày tạo:</strong> <span id="order-date"></span></p>
+                                <p><strong>Hạn trả:</strong> <span id="order-due-date"></span></p>
+                                <p><strong>Trạng thái:</strong> <span id="order-status" class="badge"></span></p>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <p><strong>Ghi chú:</strong> <span id="order-notes">Không có</span></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="mb-3">Danh sách sách mượn</h6>
+                    <div class="table-responsive">
+                        <table class="table align-items-center">
+                            <thead>
+                                <tr>
+                                    <th>Sách</th>
+                                    <th>Tác giả</th>
+                                    <th>Trạng thái</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="order-books">
+                                <!-- Danh sách sách sẽ được thêm vào đây bằng JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer" id="order-actions">
+                    <!-- Các nút thao tác sẽ được thêm vào đây bằng JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal ghi nhận trả sách -->
+    <div class="modal fade" id="returnBookModal" tabindex="-1" aria-labelledby="returnBookModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="returnBookModalLabel">Ghi nhận trả sách</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="return-borrow-id">
+                    <div class="mb-3">
+                        <p><strong>Sách:</strong> <span id="return-book-title"></span></p>
+                        <p><strong>Người mượn:</strong> <span id="return-user-name"></span></p>
+                        <p><strong>Ngày mượn:</strong> <span id="return-borrow-date"></span></p>
+                        <p><strong>Hạn trả:</strong> <span id="return-due-date"></span></p>
+                        <p id="return-overdue-info" class="text-danger"></p>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="condition-ok" checked>
+                            <label class="form-check-label" for="condition-ok">
+                                Sách còn trong tình trạng tốt
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="condition-notes" class="form-label">Ghi chú về tình trạng sách</label>
+                        <textarea class="form-control" id="condition-notes" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3" id="late-fine-group">
+                        <label for="late-fine" class="form-label">Phí trả muộn (VNĐ)</label>
+                        <input type="number" class="form-control" id="late-fine" value="0" min="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary" id="confirm-return-btn">Xác nhận trả sách</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/admin_borrows.js"></script>
+{% endblock %}

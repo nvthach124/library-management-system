@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin - Thư Viện Tri Thức{% endblock %}</title>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Admin CSS -->
+    <link rel="stylesheet" href="/static/css/admin.css">
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Custom styles for specific pages -->
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-book-open"></i>
+                <h3>Thư Viện Tri Thức</h3>
+                <span>Quản trị viên</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <ul>
+                    <li>
+                        <a href="/admin/dashboard" class="{% if active_page == 'dashboard' %}active{% endif %}">
+                            <i class="fas fa-tachometer-alt"></i> <span>Tổng quan</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/books" class="{% if active_page == 'books' %}active{% endif %}">
+                            <i class="fas fa-book"></i> <span>Quản lý sách</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/users" class="{% if active_page == 'users' %}active{% endif %}">
+                            <i class="fas fa-users"></i> <span>Quản lý người dùng</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/orders" class="{% if active_page == 'orders' %}active{% endif %}">
+                            <i class="fas fa-clipboard-list"></i> <span>Quản lý đơn mượn</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/categories" class="{% if active_page == 'categories' %}active{% endif %}">
+                            <i class="fas fa-tags"></i> <span>Danh mục sách</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/authors" class="{% if active_page == 'authors' %}active{% endif %}">
+                            <i class="fas fa-user-edit"></i> <span>Tác giả</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/publishers" class="{% if active_page == 'publishers' %}active{% endif %}">
+                            <i class="fas fa-building"></i> <span>Nhà xuất bản</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/overdue-reports" class="{% if active_page == 'overdue_reports' %}active{% endif %}">
+                            <i class="fas fa-exclamation-triangle"></i> <span>Báo cáo quá hạn</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/reports" class="{% if active_page == 'reports' %}active{% endif %}">
+                            <i class="fas fa-chart-bar"></i> <span>Báo cáo thống kê</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/settings" class="{% if active_page == 'settings' %}active{% endif %}">
+                            <i class="fas fa-cog"></i> <span>Cài đặt</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/" target="_blank">
+                            <i class="fas fa-external-link-alt"></i> <span>Xem trang chủ</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" id="logout-btn">
+                            <i class="fas fa-sign-out-alt"></i> <span>Đăng xuất</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        
+        <!-- Main content -->
+        <div class="main-content">
+            <!-- Top navbar -->
+            <header class="admin-header">
+                <div class="menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </div>
+                
+                <div class="search-box">
+                    <form action="/admin/search" method="get">
+                        <input type="text" name="q" placeholder="Tìm kiếm...">
+                        <button type="submit"><i class="fas fa-search"></i></button>
+                    </form>
+                </div>
+                
+                <div class="header-right">
+                    <div class="notifications">
+                        <a href="#" class="notification-icon" id="notification-dropdown-btn">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-badge">0</span>
+                        </a>
+                        
+                        <!-- Notification dropdown -->
+                        <div class="dropdown-content" id="notification-dropdown">
+                            <div class="dropdown-header">
+                                <h4>Thông báo</h4>
+                                <div class="dropdown-tools">
+                                    <button id="run-notification-check" title="Kiểm tra và gửi thông báo">
+                                        <i class="fas fa-bell"></i>
+                                    </button>
+                                    <button id="mark-all-notifications-read" title="Đánh dấu tất cả đã đọc">
+                                        <i class="fas fa-check-double"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="notification-list" id="notification-list">
+                                <div class="loading">
+                                    <i class="fas fa-spinner fa-spin"></i> Đang tải...
+                                </div>
+                            </div>
+                            <div class="dropdown-footer">
+                                <a href="/admin/notifications">Xem tất cả thông báo</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="user-menu">
+                        <div class="user-info">
+                            <span>{{ current_user.full_name }}</span>
+                            <small>Admin</small>
+                        </div>
+                        <img src="/static/images/avatar-default.png" alt="User avatar" class="avatar">
+                        
+                        <!-- User dropdown -->
+                        <div class="dropdown-content" id="user-dropdown">
+                            <a href="/profile" class="dropdown-item">
+                                <i class="fas fa-user-circle"></i> Tài khoản
+                            </a>
+                            <a href="/admin/settings" class="dropdown-item">
+                                <i class="fas fa-cog"></i> Cài đặt
+                            </a>
+                            <a href="/logout" class="dropdown-item">
+                                <i class="fas fa-sign-out-alt"></i> Đăng xuất
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Page content -->
+            <div class="content-wrapper">
+                <div class="content-header">
+                    <h1>{% block page_title %}Trang quản trị{% endblock %}</h1>
+                    <div class="breadcrumb">
+                        <span><i class="fas fa-home"></i> <a href="/admin/dashboard">Trang chủ</a></span>
+                        {% block breadcrumb %}{% endblock %}
+                    </div>
+                </div>
+                
+                <div class="content">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery (for DataTables support) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Common admin scripts -->
+    <script src="/static/js/admin.js"></script>
+    
+    <!-- Custom scripts for specific pages -->
+    {% block scripts %}{% endblock %}
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Notification dropdown
+            const notificationDropdownBtn = document.getElementById('notification-dropdown-btn');
+            const notificationDropdown = document.getElementById('notification-dropdown');
+            const notificationList = document.getElementById('notification-list');
+            const userDropdown = document.getElementById('user-dropdown');
+            const userMenu = document.querySelector('.user-menu');
+            
+            if (notificationDropdownBtn) {
+                notificationDropdownBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Close user dropdown if open
+                    if (userDropdown && userDropdown.classList.contains('show')) {
+                        userDropdown.classList.remove('show');
+                    }
+                    
+                    // Toggle notification dropdown
+                    notificationDropdown.classList.toggle('show');
+                    
+                    // Load notifications if dropdown is shown
+                    if (notificationDropdown.classList.contains('show')) {
+                        loadNotifications();
+                    }
+                });
+            }
+            
+            // User menu dropdown
+            if (userMenu) {
+                userMenu.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Close notification dropdown if open
+                    if (notificationDropdown && notificationDropdown.classList.contains('show')) {
+                        notificationDropdown.classList.remove('show');
+                    }
+                    
+                    // Toggle user dropdown
+                    userDropdown.classList.toggle('show');
+                });
+            }
+            
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                if (notificationDropdown && notificationDropdown.classList.contains('show') && 
+                    !notificationDropdown.contains(e.target) && 
+                    !notificationDropdownBtn.contains(e.target)) {
+                    notificationDropdown.classList.remove('show');
+                }
+                
+                if (userDropdown && userDropdown.classList.contains('show') && 
+                    !userDropdown.contains(e.target) && 
+                    !userMenu.contains(e.target)) {
+                    userDropdown.classList.remove('show');
+                }
+            });
+            
+            // Mark all notifications as read
+            const markAllReadBtn = document.getElementById('mark-all-notifications-read');
+            if (markAllReadBtn) {
+                markAllReadBtn.addEventListener('click', function() {
+                    fetch('/api/notifications/read-all', { 
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'same-origin'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Show success message
+                        showToast('Đã đánh dấu tất cả thông báo là đã đọc', 'success');
+                        
+                        // Update notification badge
+                        updateNotificationBadge();
+                        
+                        // Reload notifications
+                        loadNotifications();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Có lỗi xảy ra', 'error');
+                    });
+                });
+            }
+            
+            // Check notifications event delegation
+            if (notificationList) {
+                notificationList.addEventListener('click', function(e) {
+                    const markReadBtn = e.target.closest('.mark-read');
+                    if (markReadBtn) {
+                        e.preventDefault();
+                        
+                        const notificationId = markReadBtn.dataset.id;
+                        markNotificationRead(notificationId);
+                    }
+                    
+                    const deleteBtn = e.target.closest('.delete-notification');
+                    if (deleteBtn) {
+                        e.preventDefault();
+                        
+                        const notificationId = deleteBtn.dataset.id;
+                        deleteNotification(notificationId);
+                    }
+                });
+            }
+            
+            // Load notifications
+            function loadNotifications() {
+                if (!notificationList) return;
+                
+                notificationList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
+                
+                fetch('/api/notifications?unread_only=true', {
+                    method: 'GET',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(notifications => {
+                    renderNotifications(notifications);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    notificationList.innerHTML = '<div class="error">Không thể tải thông báo</div>';
+                });
+            }
+            
+            // Render notifications
+            function renderNotifications(notifications) {
+                if (!notificationList) return;
+                
+                if (notifications.length === 0) {
+                    notificationList.innerHTML = '<div class="empty-state">Không có thông báo mới</div>';
+                    return;
+                }
+                
+                let html = '';
+                notifications.forEach(notification => {
+                    let typeClass = '';
+                    let icon = '';
+                    
+                    switch(notification.type) {
+                        case 'info':
+                            typeClass = 'info';
+                            icon = 'info-circle';
+                            break;
+                        case 'warning':
+                            typeClass = 'warning';
+                            icon = 'exclamation-triangle';
+                            break;
+                        case 'danger':
+                            typeClass = 'danger';
+                            icon = 'exclamation-circle';
+                            break;
+                        case 'success':
+                            typeClass = 'success';
+                            icon = 'check-circle';
+                            break;
+                        default:
+                            typeClass = 'info';
+                            icon = 'info-circle';
+                    }
+                    
+                    html += `
+                        <div class="notification-item ${typeClass}">
+                            <div class="notification-icon">
+                                <i class="fas fa-${icon}"></i>
+                            </div>
+                            <div class="notification-content">
+                                <h4 class="notification-title">${notification.title}</h4>
+                                <p class="notification-message">${notification.message}</p>
+                                <span class="notification-time">${formatTimestamp(notification.created_at)}</span>
+                            </div>
+                            <div class="notification-actions">
+                                <button class="mark-read" data-id="${notification.id}" title="Đánh dấu đã đọc">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="delete-notification" data-id="${notification.id}" title="Xóa">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                notificationList.innerHTML = html;
+            }
+            
+            // Mark notification as read
+            function markNotificationRead(id) {
+                fetch(`/api/notifications/${id}/read`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Remove notification from list
+                    const notification = document.querySelector(`.notification-item .mark-read[data-id="${id}"]`);
+                    if (notification) {
+                        const notificationItem = notification.closest('.notification-item');
+                        notificationItem.remove();
+                    }
+                    
+                    // Update notification badge
+                    updateNotificationBadge();
+                    
+                    // Check if list is empty
+                    if (notificationList.querySelectorAll('.notification-item').length === 0) {
+                        notificationList.innerHTML = '<div class="empty-state">Không có thông báo mới</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Có lỗi xảy ra', 'error');
+                });
+            }
+            
+            // Delete notification
+            function deleteNotification(id) {
+                fetch(`/api/notifications/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Remove notification from list
+                    const notification = document.querySelector(`.notification-item .delete-notification[data-id="${id}"]`);
+                    if (notification) {
+                        const notificationItem = notification.closest('.notification-item');
+                        notificationItem.remove();
+                    }
+                    
+                    // Update notification badge
+                    updateNotificationBadge();
+                    
+                    // Check if list is empty
+                    if (notificationList.querySelectorAll('.notification-item').length === 0) {
+                        notificationList.innerHTML = '<div class="empty-state">Không có thông báo mới</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Có lỗi xảy ra', 'error');
+                });
+            }
+            
+            // Format timestamp
+            function formatTimestamp(timestamp) {
+                const date = new Date(timestamp);
+                const now = new Date();
+                const diffTime = Math.abs(now - date);
+                const diffMinutes = Math.floor(diffTime / (1000 * 60));
+                const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                
+                if (diffMinutes < 60) {
+                    return `${diffMinutes} phút trước`;
+                } else if (diffHours < 24) {
+                    return `${diffHours} giờ trước`;
+                } else if (diffDays < 7) {
+                    return `${diffDays} ngày trước`;
+                } else {
+                    return date.toLocaleDateString('vi-VN');
+                }
+            }
+            
+            // Show toast
+            function showToast(message, type = 'info') {
+                if (typeof Swal !== 'undefined') {
+                    const Toast = Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000,
+                        timerProgressBar: true
+                    });
+                    
+                    Toast.fire({
+                        icon: type,
+                        title: message
+                    });
+                } else {
+                    alert(message);
+                }
+            }
+            
+            // Update notification badge
+            function updateNotificationBadge() {
+                const badgeElement = document.querySelector('.notification-badge');
+                if (!badgeElement) return;
+                
+                fetch('/api/notifications/unread-count', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Không thể lấy số lượng thông báo');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const count = data.count;
+                    badgeElement.textContent = count;
+                    
+                    if (count > 0) {
+                        badgeElement.style.display = 'flex';
+                    } else {
+                        badgeElement.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            }
+            
+            // Initial load
+            updateNotificationBadge();
+        });
+    </script>
+    
+    <style>
+        /* Additional styles for admin base */
+        .dropdown-content {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            min-width: 320px;
+            max-width: 400px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            display: none;
+            overflow: hidden;
+        }
+        
+        .dropdown-content.show {
+            display: block;
+        }
+        
+        .dropdown-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .dropdown-header h4 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        
+        .dropdown-tools {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .dropdown-tools button {
+            background: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .dropdown-tools button:hover {
+            background-color: rgba(var(--primary-rgb), 0.1);
+            color: var(--primary-color);
+        }
+        
+        .notification-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .dropdown-footer {
+            padding: 0.75rem 1rem;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .dropdown-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .dropdown-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .notification-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s;
+        }
+        
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+        
+        .notification-item:hover {
+            background-color: rgba(var(--primary-rgb), 0.02);
+        }
+        
+        .notification-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            margin-right: 0.75rem;
+            flex-shrink: 0;
+        }
+        
+        .notification-item.info .notification-icon {
+            background-color: rgba(var(--info-rgb), 0.1);
+            color: var(--info-color);
+        }
+        
+        .notification-item.warning .notification-icon {
+            background-color: rgba(var(--warning-rgb), 0.1);
+            color: var(--warning-color);
+        }
+        
+        .notification-item.danger .notification-icon {
+            background-color: rgba(var(--danger-rgb), 0.1);
+            color: var(--danger-color);
+        }
+        
+        .notification-item.success .notification-icon {
+            background-color: rgba(var(--success-rgb), 0.1);
+            color: var(--success-color);
+        }
+        
+        .notification-content {
+            flex: 1;
+        }
+        
+        .notification-title {
+            margin: 0 0 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        
+        .notification-message {
+            margin: 0 0 0.25rem;
+            font-size: 0.8125rem;
+            color: var(--text-light);
+        }
+        
+        .notification-time {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-light);
+        }
+        
+        .notification-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-left: 0.5rem;
+        }
+        
+        .notification-actions button {
+            background: none;
+            border: none;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .notification-actions button:hover {
+            background-color: rgba(var(--primary-rgb), 0.1);
+            color: var(--primary-color);
+        }
+        
+        .notification-actions .delete-notification:hover {
+            background-color: rgba(var(--danger-rgb), 0.1);
+            color: var(--danger-color);
+        }
+        
+        .loading, .empty-state, .error {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: var(--text-light);
+            font-size: 0.875rem;
+        }
+        
+        .loading i {
+            margin-right: 0.5rem;
+        }
+        
+        .error {
+            color: var(--danger-color);
+        }
+        
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: var(--text-dark);
+            transition: all 0.2s;
+        }
+        
+        .dropdown-item i {
+            margin-right: 0.75rem;
+            width: 1rem;
+            text-align: center;
+        }
+        
+        .dropdown-item:hover {
+            background-color: rgba(var(--primary-rgb), 0.05);
+            color: var(--primary-color);
+        }
+    </style>
+</body>
+</html>

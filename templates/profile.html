@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+
+{% block title %}Thông tin cá nhân{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- User Profile Information -->
+        <div class="col-md-3 mb-4">
+            <div class="card profile-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="card-title mb-0">Thông tin cá nhân</h4>
+                        <button class="btn btn-outline-primary btn-sm" onclick="openEditProfileModal()">
+                            <i class="fas fa-edit"></i> Chỉnh sửa
+                        </button>
+                    </div>
+                    <div class="text-center mb-4">
+                        <div class="profile-avatar">
+                            <i class="fas fa-user-circle fa-5x text-primary"></i>
+                        </div>
+                    </div>
+                    <div class="profile-info">
+                        <div class="mb-3">
+                            <label class="profile-label">Họ và tên:</label>
+                            <div class="profile-value">{{ user.full_name }}</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="profile-label">Email:</label>
+                            <div class="profile-value">{{ user.email }}</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="profile-label">Tên đăng nhập:</label>
+                            <div class="profile-value">{{ user.username }}</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="profile-label">Số điện thoại:</label>
+                            <div class="profile-value">{{ user.phone_number or 'Chưa cập nhật' }}</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="profile-label">Địa chỉ:</label>
+                            <div class="profile-value">{{ user.address or 'Chưa cập nhật' }}</div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button class="btn btn-warning w-100" onclick="openChangePasswordModal()">
+                            <i class="fas fa-key"></i> Đổi mật khẩu
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Content Tabs -->
+        <div class="col-md-9 mb-4">
+            <!-- Tab Navigation -->
+            <ul class="nav nav-tabs profile-tabs" id="profileTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="active-orders-tab" data-bs-toggle="tab" data-bs-target="#active-orders" type="button" role="tab">
+                        <i class="fas fa-clock"></i> Đơn đang xử lý
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="active-borrows-tab" data-bs-toggle="tab" data-bs-target="#active-borrows" type="button" role="tab">
+                        <i class="fas fa-book"></i> Sách đang mượn
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="order-history-tab" data-bs-toggle="tab" data-bs-target="#order-history" type="button" role="tab">
+                        <i class="fas fa-history"></i> Lịch sử đơn
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="borrow-history-tab" data-bs-toggle="tab" data-bs-target="#borrow-history" type="button" role="tab">
+                        <i class="fas fa-archive"></i> Lịch sử mượn trả
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="profileTabsContent">
+                <!-- Active Orders Tab -->
+                <div class="tab-pane fade show active" id="active-orders" role="tabpanel">
+                    <div class="card tab-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="mb-0">Đơn mượn đang xử lý</h5>
+                                <span class="badge bg-primary">{{ active_orders|length }} đơn</span>
+                            </div>
+                            {% if active_orders %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Ngày đặt</th>
+                                            <th>Sách mượn</th>
+                                            <th>Trạng thái</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for order in active_orders %}
+                                        <tr>
+                                            <td><strong>#{{ order.id }}</strong></td>
+                                            <td>{{ order.order_date.strftime('%d/%m/%Y') }}</td>
+                                            <td>
+                                                <ul class="list-unstyled mb-0">
+                                                {% for book in order.books %}
+                                                    <li class="mb-1">
+                                                        <a href="/books/{{ book.id }}" class="text-decoration-none">
+                                                            <i class="fas fa-book fa-sm text-muted me-1"></i>
+                                                            {{ book.title }}
+                                                        </a>
+                                                    </li>
+                                                {% endfor %}
+                                                </ul>
+                                            </td>
+                                            <td>
+                                                {% if order.status == 'pending' %}
+                                                    <span class="badge bg-warning">Chờ duyệt</span>
+                                                {% elif order.status == 'approved' %}
+                                                    <span class="badge bg-info">Đã duyệt</span>
+                                                {% elif order.status == 'active' %}
+                                                    <span class="badge bg-primary">Đang mượn</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-clipboard-list fa-3x mb-3"></i>
+                                <p class="mb-0">Không có đơn mượn đang xử lý</p>
+                                <small class="text-muted">Hãy tạo đơn mượn sách mới!</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Borrows Tab -->
+                <div class="tab-pane fade" id="active-borrows" role="tabpanel">
+                    <div class="card tab-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="mb-0">Sách đang mượn</h5>
+                                <span class="badge bg-success">{{ active_borrows|length }} sách</span>
+                            </div>
+                            {% if active_borrows %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Sách</th>
+                                            <th>Mã đơn</th>
+                                            <th>Ngày mượn</th>
+                                            <th>Hạn trả</th>
+                                            <th>Trạng thái</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for borrow in active_borrows %}
+                                        <tr>
+                                            <td>
+                                                <a href="/books/{{ borrow.book.id }}" class="text-decoration-none fw-medium">
+                                                    <i class="fas fa-book fa-sm text-muted me-1"></i>
+                                                    {{ borrow.book.title }}
+                                                </a>
+                                            </td>
+                                            <td><strong>#{{ borrow.order_id }}</strong></td>
+                                            <td>{{ borrow.borrow_date.strftime('%d/%m/%Y') }}</td>
+                                            <td>
+                                                <span class="{% if borrow.status == 'overdue' %}text-danger fw-bold{% endif %}">
+                                                    {{ borrow.due_date.strftime('%d/%m/%Y') }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if borrow.status == 'active' %}
+                                                    <span class="badge bg-primary">Đang mượn</span>
+                                                {% elif borrow.status == 'overdue' %}
+                                                    <span class="badge bg-danger">Quá hạn</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-book fa-3x mb-3"></i>
+                                <p class="mb-0">Bạn chưa mượn sách nào</p>
+                                <small class="text-muted">Hãy tạo đơn mượn sách!</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order History Tab -->
+                <div class="tab-pane fade" id="order-history" role="tabpanel">
+                    <div class="card tab-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="mb-0">Lịch sử đơn mượn</h5>
+                                <span class="badge bg-secondary">{{ order_history|length }} đơn</span>
+                            </div>
+                            {% if order_history %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Ngày đặt</th>
+                                            <th>Sách mượn</th>
+                                            <th>Trạng thái</th>
+                                            <th>Ghi chú</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for order in order_history %}
+                                        <tr>
+                                            <td><strong>#{{ order.id }}</strong></td>
+                                            <td>{{ order.order_date.strftime('%d/%m/%Y') }}</td>
+                                            <td>
+                                                <ul class="list-unstyled mb-0">
+                                                {% for book in order.books %}
+                                                    <li class="mb-1">
+                                                        <a href="/books/{{ book.id }}" class="text-decoration-none">
+                                                            <i class="fas fa-book fa-sm text-muted me-1"></i>
+                                                            {{ book.title }}
+                                                        </a>
+                                                    </li>
+                                                {% endfor %}
+                                                </ul>
+                                            </td>
+                                            <td>
+                                                {% if order.status == 'completed' %}
+                                                    <span class="badge bg-success">Hoàn thành</span>
+                                                {% elif order.status == 'rejected' %}
+                                                    <span class="badge bg-danger">Từ chối</span>
+                                                {% elif order.status == 'cancelled' %}
+                                                    <span class="badge bg-secondary">Đã hủy</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ order.notes or 'Không có ghi chú' }}</small>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-clipboard-check fa-3x mb-3"></i>
+                                <p class="mb-0">Chưa có lịch sử đơn mượn</p>
+                                <small class="text-muted">Lịch sử các đơn đã hoàn thành sẽ hiển thị ở đây</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Borrow History Tab -->
+                <div class="tab-pane fade" id="borrow-history" role="tabpanel">
+                    <div class="card tab-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="mb-0">Lịch sử mượn trả sách</h5>
+                                <span class="badge bg-info">{{ borrow_history|length }} lần</span>
+                            </div>
+                            {% if borrow_history %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Sách</th>
+                                            <th>Mã đơn</th>
+                                            <th>Ngày mượn</th>
+                                            <th>Ngày trả</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for borrow in borrow_history %}
+                                        <tr>
+                                            <td>
+                                                <a href="/books/{{ borrow.book.id }}" class="text-decoration-none fw-medium">
+                                                    <i class="fas fa-book fa-sm text-muted me-1"></i>
+                                                    {{ borrow.book.title }}
+                                                </a>
+                                            </td>
+                                            <td><strong>#{{ borrow.order_id }}</strong></td>
+                                            <td>{{ borrow.borrow_date.strftime('%d/%m/%Y') }}</td>
+                                            <td>
+                                                <span class="text-success">
+                                                    <i class="fas fa-check-circle fa-sm me-1"></i>
+                                                    {{ borrow.return_date.strftime('%d/%m/%Y') }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-history fa-3x mb-3"></i>
+                                <p class="mb-0">Chưa có lịch sử mượn trả sách</p>
+                                <small class="text-muted">Lịch sử các lần mượn trả sách sẽ hiển thị ở đây</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editProfileModalLabel">
+                    <i class="fas fa-user-edit me-2"></i>Chỉnh sửa thông tin cá nhân
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editProfileForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editFullName" class="form-label">Họ và tên</label>
+                        <input type="text" class="form-control" id="editFullName" value="{{ user.full_name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="editEmail" value="{{ user.email }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPhoneNumber" class="form-label">Số điện thoại</label>
+                        <input type="tel" class="form-control" id="editPhoneNumber" value="{{ user.phone_number or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editAddress" class="form-label">Địa chỉ</label>
+                        <textarea class="form-control" id="editAddress" rows="3">{{ user.address or '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Lưu thay đổi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="changePasswordModalLabel">
+                    <i class="fas fa-key me-2"></i>Đổi mật khẩu
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="changePasswordForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="oldPassword" class="form-label">Mật khẩu hiện tại</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="oldPassword" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('oldPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">Mật khẩu mới</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="newPassword" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('newPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">Mật khẩu phải có ít nhất 6 ký tự</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Xác nhận mật khẩu mới</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="confirmPassword" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirmPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-key me-1"></i>Đổi mật khẩu
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', path='css/profile.css') }}">
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='js/profile.js') }}"></script>
+{% endblock %}

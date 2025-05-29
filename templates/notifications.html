@@ -1,0 +1,848 @@
+{% extends "base.html" %}
+
+{% block page_title %}Thông báo{% endblock %}
+
+{% block content %}
+<div class="notifications-page">
+    <div class="page-header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="page-title">
+                    <i class="fas fa-bell"></i>
+                    Thông báo của bạn
+                </h1>
+                <div class="notification-stats">
+                    <span class="stat-badge">
+                        <i class="fas fa-envelope"></i>
+                        Tổng: {{ total_notifications }}
+                    </span>
+                    {% if unread_notifications > 0 %}
+                    <span class="stat-badge unread">
+                        <i class="fas fa-envelope-open"></i>
+                        Chưa đọc: {{ unread_notifications }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="notifications-controls mb-4">
+            <div class="controls-left">
+                {% if unread_notifications > 0 %}
+                <button class="btn btn-primary" id="mark-all-read">
+                    <i class="fas fa-check-double"></i>
+                    Đánh dấu tất cả đã đọc
+                </button>
+                {% endif %}
+                <button class="btn btn-secondary" id="refresh-notifications">
+                    <i class="fas fa-sync-alt"></i>
+                    Tải lại
+                </button>
+            </div>
+            <div class="controls-right">
+                <div class="filter-dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" id="filter-dropdown">
+                        <i class="fas fa-filter"></i>
+                        Lọc thông báo
+                    </button>
+                    <div class="dropdown-menu" id="filter-menu">
+                        <a href="#" class="dropdown-item" data-filter="all">
+                            <i class="fas fa-list"></i> Tất cả
+                        </a>
+                        <a href="#" class="dropdown-item" data-filter="unread">
+                            <i class="fas fa-envelope"></i> Chưa đọc
+                        </a>
+                        <a href="#" class="dropdown-item" data-filter="info">
+                            <i class="fas fa-info-circle"></i> Thông tin
+                        </a>
+                        <a href="#" class="dropdown-item" data-filter="warning">
+                            <i class="fas fa-exclamation-triangle"></i> Cảnh báo
+                        </a>
+                        <a href="#" class="dropdown-item" data-filter="danger">
+                            <i class="fas fa-exclamation-circle"></i> Quan trọng
+                        </a>
+                        <a href="#" class="dropdown-item" data-filter="success">
+                            <i class="fas fa-check-circle"></i> Thành công
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="notifications-container">
+            {% if notifications %}
+                <div class="notifications-grid">
+                    {% for notification in notifications %}
+                    <div class="notification-card {% if not notification.is_read %}unread{% endif %} notification-{{ notification.type }}" 
+                         data-id="{{ notification.id }}" 
+                         data-type="{{ notification.type }}" 
+                         data-read="{{ notification.is_read|lower }}">
+                        
+                        <div class="notification-header">
+                            <div class="notification-icon">
+                                {% if notification.type == 'info' %}
+                                    <i class="fas fa-info-circle"></i>
+                                {% elif notification.type == 'warning' %}
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                {% elif notification.type == 'danger' %}
+                                    <i class="fas fa-exclamation-circle"></i>
+                                {% elif notification.type == 'success' %}
+                                    <i class="fas fa-check-circle"></i>
+                                {% else %}
+                                    <i class="fas fa-bell"></i>
+                                {% endif %}
+                            </div>
+                            <div class="notification-meta">
+                                <span class="notification-time" title="{{ notification.created_at.strftime('%d/%m/%Y %H:%M:%S') }}">
+                                    {{ notification.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                </span>
+                                {% if not notification.is_read %}
+                                <span class="unread-indicator">
+                                    <i class="fas fa-circle"></i>
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="notification-actions">
+                                {% if not notification.is_read %}
+                                <button class="action-btn mark-read-btn" data-id="{{ notification.id }}" title="Đánh dấu đã đọc">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                {% endif %}
+                                <button class="action-btn delete-btn" data-id="{{ notification.id }}" title="Xóa thông báo">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="notification-content">
+                            <h3 class="notification-title">{{ notification.title }}</h3>
+                            <p class="notification-message">{{ notification.message }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-bell-slash"></i>
+                    </div>
+                    <h3>Không có thông báo</h3>
+                    <p>Bạn chưa có thông báo nào. Thông báo mới sẽ hiển thị tại đây.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast-container" id="toast-container"></div>
+
+<style>
+.notifications-page {
+    min-height: calc(100vh - 80px);
+    background-color: #f8f9fa;
+}
+
+.page-header {
+    background: linear-gradient(135deg, var(--primary-color), #4a90e2);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+.page-title i {
+    margin-right: 0.75rem;
+    opacity: 0.9;
+}
+
+.notification-stats {
+    display: flex;
+    gap: 1rem;
+}
+
+.stat-badge {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stat-badge.unread {
+    background: rgba(255, 193, 7, 0.2);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.notifications-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.controls-left, .controls-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+}
+
+.btn-outline-secondary {
+    background-color: white;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+}
+
+.filter-dropdown {
+    position: relative;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 200px;
+    z-index: 1000;
+    display: none;
+}
+
+.dropdown-menu.show {
+    display: block;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    color: #212529;
+    text-decoration: none;
+    transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+    color: var(--primary-color);
+}
+
+.notifications-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: 1fr;
+}
+
+.notification-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-left: 4px solid transparent;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.notification-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.notification-card.unread {
+    background: linear-gradient(135deg, #fff 0%, #f8f9ff 100%);
+}
+
+.notification-card.notification-info {
+    border-left-color: var(--info-color);
+}
+
+.notification-card.notification-warning {
+    border-left-color: var(--warning-color);
+}
+
+.notification-card.notification-danger {
+    border-left-color: var(--danger-color);
+}
+
+.notification-card.notification-success {
+    border-left-color: var(--success-color);
+}
+
+.notification-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.notification-info .notification-icon {
+    background: rgba(var(--info-rgb), 0.1);
+    color: var(--info-color);
+}
+
+.notification-warning .notification-icon {
+    background: rgba(var(--warning-rgb), 0.1);
+    color: var(--warning-color);
+}
+
+.notification-danger .notification-icon {
+    background: rgba(var(--danger-rgb), 0.1);
+    color: var(--danger-color);
+}
+
+.notification-success .notification-icon {
+    background: rgba(var(--success-rgb), 0.1);
+    color: var(--success-color);
+}
+
+.notification-meta {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: 1rem;
+}
+
+.notification-time {
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.unread-indicator {
+    color: var(--primary-color);
+    font-size: 0.5rem;
+}
+
+.notification-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: #f8f9fa;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #6c757d;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    transform: scale(1.1);
+}
+
+.mark-read-btn:hover {
+    background: rgba(var(--success-rgb), 0.1);
+    color: var(--success-color);
+}
+
+.delete-btn:hover {
+    background: rgba(var(--danger-rgb), 0.1);
+    color: var(--danger-color);
+}
+
+.notification-title {
+    margin: 0 0 0.5rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #212529;
+    line-height: 1.4;
+}
+
+.notification-message {
+    margin: 0;
+    color: #6c757d;
+    line-height: 1.6;
+    font-size: 0.9375rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #6c757d;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.3;
+}
+
+.empty-state h3 {
+    margin: 0 0 1rem;
+    font-size: 1.5rem;
+    color: #495057;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 1rem;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+/* Toast notifications */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.toast {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    min-width: 300px;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast.success {
+    border-left: 4px solid var(--success-color);
+}
+
+.toast.error {
+    border-left: 4px solid var(--danger-color);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .page-header {
+        padding: 1.5rem 0;
+    }
+    
+    .page-title {
+        font-size: 1.5rem;
+    }
+    
+    .notification-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .notifications-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .controls-left, .controls-right {
+        justify-content: center;
+    }
+    
+    .notification-card {
+        padding: 1rem;
+    }
+    
+    .notification-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .notification-meta {
+        margin-left: 0;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+}
+
+/* Hidden class for filtering */
+.notification-card.hidden {
+    display: none;
+}
+
+/* Loading state */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9998;
+}
+
+.loading-spinner {
+    color: var(--primary-color);
+    font-size: 2rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Elements
+    const markAllReadBtn = document.getElementById('mark-all-read');
+    const refreshBtn = document.getElementById('refresh-notifications');
+    const testBtn = document.getElementById('test-notifications');
+    const filterDropdown = document.getElementById('filter-dropdown');
+    const filterMenu = document.getElementById('filter-menu');
+    const notificationCards = document.querySelectorAll('.notification-card');
+    const toastContainer = document.getElementById('toast-container');
+    
+    let currentFilter = 'all';
+    
+    // Show test button in development or for admin users
+    if (testBtn && (window.location.hostname === 'localhost' || document.querySelector('[data-user-admin="true"]'))) {
+        testBtn.style.display = 'inline-flex';
+    }
+    
+    // Event listeners
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', markAllNotificationsRead);
+    }
+    
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', refreshPage);
+    }
+    
+    if (testBtn) {
+        testBtn.addEventListener('click', createTestNotifications);
+    }
+    
+    if (filterDropdown && filterMenu) {
+        filterDropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+            filterMenu.classList.toggle('show');
+        });
+        
+        filterMenu.addEventListener('click', function(e) {
+            if (e.target.classList.contains('dropdown-item')) {
+                e.preventDefault();
+                const filter = e.target.getAttribute('data-filter');
+                applyFilter(filter);
+                filterMenu.classList.remove('show');
+            }
+        });
+    }
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (filterMenu && !e.target.closest('.filter-dropdown')) {
+            filterMenu.classList.remove('show');
+        }
+    });
+    
+    // Event delegation for notification actions
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.mark-read-btn')) {
+            e.preventDefault();
+            const btn = e.target.closest('.mark-read-btn');
+            const notificationId = parseInt(btn.getAttribute('data-id'));
+            markNotificationRead(notificationId);
+        }
+        
+        if (e.target.closest('.delete-btn')) {
+            e.preventDefault();
+            const btn = e.target.closest('.delete-btn');
+            const notificationId = parseInt(btn.getAttribute('data-id'));
+            deleteNotification(notificationId);
+        }
+    });
+    
+    // Functions
+    function markNotificationRead(notificationId) {
+        showLoading();
+        
+        fetch(`/api/notifications/${notificationId}/read`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể đánh dấu đã đọc');
+            }
+            return response.json();
+        })
+        .then(result => {
+            // Update the UI
+            const card = document.querySelector(`.notification-card[data-id="${notificationId}"]`);
+            if (card) {
+                card.classList.remove('unread');
+                card.setAttribute('data-read', 'true');
+                
+                // Remove unread indicator and mark read button
+                const unreadIndicator = card.querySelector('.unread-indicator');
+                const markReadBtn = card.querySelector('.mark-read-btn');
+                
+                if (unreadIndicator) unreadIndicator.remove();
+                if (markReadBtn) markReadBtn.remove();
+            }
+            
+            hideLoading();
+            showToast('Đã đánh dấu thông báo là đã đọc', 'success');
+            
+            // Refresh page after a short delay to update counters
+            setTimeout(() => window.location.reload(), 1000);
+        })
+        .catch(error => {
+            hideLoading();
+            showToast('Lỗi: ' + error.message, 'error');
+        });
+    }
+    
+    function deleteNotification(notificationId) {
+        if (!confirm('Bạn có chắc chắn muốn xóa thông báo này?')) {
+            return;
+        }
+        
+        showLoading();
+        
+        fetch(`/api/notifications/${notificationId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể xóa thông báo');
+            }
+            return response.json();
+        })
+        .then(result => {
+            // Remove the card from DOM
+            const card = document.querySelector(`.notification-card[data-id="${notificationId}"]`);
+            if (card) {
+                card.style.transform = 'translateX(100%)';
+                card.style.opacity = '0';
+                setTimeout(() => card.remove(), 300);
+            }
+            
+            hideLoading();
+            showToast('Đã xóa thông báo', 'success');
+            
+            // Check if no notifications left
+            setTimeout(() => {
+                const remainingCards = document.querySelectorAll('.notification-card');
+                if (remainingCards.length === 0) {
+                    window.location.reload();
+                }
+            }, 500);
+        })
+        .catch(error => {
+            hideLoading();
+            showToast('Lỗi: ' + error.message, 'error');
+        });
+    }
+    
+    function markAllNotificationsRead() {
+        if (!confirm('Đánh dấu tất cả thông báo là đã đọc?')) {
+            return;
+        }
+        
+        showLoading();
+        
+        fetch('/api/notifications/read-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể đánh dấu tất cả đã đọc');
+            }
+            return response.json();
+        })
+        .then(result => {
+            hideLoading();
+            showToast('Đã đánh dấu tất cả thông báo là đã đọc', 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        })
+        .catch(error => {
+            hideLoading();
+            showToast('Lỗi: ' + error.message, 'error');
+        });
+    }
+    
+    function refreshPage() {
+        window.location.reload();
+    }
+    
+    function createTestNotifications() {
+        if (!confirm('Tạo một số thông báo mẫu để test hệ thống?')) {
+            return;
+        }
+        
+        showLoading();
+        
+        fetch('/api/notifications/test/create-sample', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể tạo thông báo test');
+            }
+            return response.json();
+        })
+        .then(result => {
+            hideLoading();
+            showToast(result.message, 'success');
+            setTimeout(() => window.location.reload(), 1500);
+        })
+        .catch(error => {
+            hideLoading();
+            showToast('Lỗi: ' + error.message, 'error');
+        });
+    }
+    
+    function applyFilter(filter) {
+        currentFilter = filter;
+        
+        notificationCards.forEach(card => {
+            const type = card.getAttribute('data-type');
+            const isRead = card.getAttribute('data-read') === 'true';
+            let show = true;
+            
+            switch (filter) {
+                case 'unread':
+                    show = !isRead;
+                    break;
+                case 'info':
+                case 'warning':
+                case 'danger':
+                case 'success':
+                    show = type === filter;
+                    break;
+                case 'all':
+                default:
+                    show = true;
+                    break;
+            }
+            
+            if (show) {
+                card.classList.remove('hidden');
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+    }
+    
+    function showLoading() {
+        const loading = document.createElement('div');
+        loading.className = 'loading-overlay';
+        loading.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i></div>';
+        document.body.appendChild(loading);
+    }
+    
+    function hideLoading() {
+        const loading = document.querySelector('.loading-overlay');
+        if (loading) {
+            loading.remove();
+        }
+    }
+    
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-${type === 'success' ? 'check' : 'exclamation-triangle'}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        // Show toast
+        setTimeout(() => toast.classList.add('show'), 100);
+        
+        // Hide toast after 3 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+});
+</script>
+{% endblock %}

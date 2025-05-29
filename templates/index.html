@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}Thư Viện Tri Thức - Trang Chủ{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="/static/css/home.css">
+<style>
+    .hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+        padding: 4rem 2rem;
+        margin-bottom: 0;
+    }
+    
+    .hero h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .hero p {
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+        opacity: 0.9;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* Welcome Section for Logged-in Users */
+    .welcome-section {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .user-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    /* CTA Button Styles */
+    .cta-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem 2rem;
+        background-color: #fff;
+        color: #667eea;
+        text-decoration: none;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border: 2px solid transparent;
+    }
+    
+    .cta-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        text-decoration: none;
+        color: #667eea;
+    }
+    
+    .cta-button.primary {
+        background-color: #fff;
+        color: #667eea;
+    }
+    
+    .cta-button.secondary {
+        background-color: transparent;
+        color: #fff;
+        border-color: #fff;
+    }
+    
+    .cta-button.secondary:hover {
+        background-color: #fff;
+        color: #667eea;
+    }
+    /* Additional styles for recent books section */
+    .recent-section {
+        padding: 3rem 2rem;
+        background-color: #f8fafc;
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .view-all {
+        color: var(--primary-color);
+        text-decoration: none;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .view-all:hover {
+        text-decoration: underline;
+    }
+    
+    .book-card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    
+    .book-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: rgba(29, 78, 216, 0.85);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: bold;
+    }
+    
+    .book-cover-container {
+        position: relative;
+    }
+    
+    .book-meta {
+        margin-top: auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-sm.add-to-cart {
+        font-size: 0.85rem;
+        padding: 0.25rem 0.5rem;
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        transition: all 0.2s;
+    }
+    
+    .btn-sm.add-to-cart:hover {
+        background-color: var(--primary-color-dark, #2563eb);
+        transform: translateY(-1px);
+    }
+    
+    .btn-sm.add-to-cart.in-cart {
+        background-color: #10b981;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+    
+     {% if not current_user %}
+        <h1>Khám Phá Thế Giới Qua Trang Sách</h1>
+        <p>Thư viện của chúng tôi cung cấp hàng ngàn đầu sách đa dạng thể loại. Mượn sách dễ dàng, nhanh chóng và hoàn toàn miễn phí cho thành viên.</p>
+        <a href="/register" class="cta-button">
+            <i class="fas fa-user-plus"></i> Đăng Ký Thành Viên
+        </a>
+    {% else %}
+        <div class="welcome-section">
+            <h1>Chào mừng {{ current_user.full_name }} đến với Thư Viện Tri Thức</h1>
+            <p>Hãy bắt đầu khám phá những cuốn sách hay và thú vị trong thư viện của chúng tôi</p>
+            <div class="user-actions">
+                <a href="/search" class="cta-button primary">
+                    <i class="fas fa-search"></i> Tìm Kiếm Sách
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</section>
+
+<section class="recent-section">
+    <h2 class="section-title">Sách Mới Thêm</h2>
+    <div class="books-grid">
+        {% for book in recent_admin_books %}
+        <div class="book-card" 
+             data-id="{{ book.id }}" 
+             data-title="{{ book.title }}" 
+             data-author="{{ book.author.name }}" 
+             data-image="{{ book.cover_image if book.cover_image else '/static/images/book_default.jpg' }}">
+            <div class="book-cover-container">
+                <img src="{{ book.cover_image if book.cover_image else '/static/images/book_default.jpg' }}" alt="{{ book.title }}" class="book-cover">
+                <span class="book-badge">Mới</span>
+            </div>
+            <div class="book-info">
+                <h3 class="book-title">
+                    <a href="/books/{{ book.id }}">{{ book.title }}</a>
+                </h3>
+                <p class="book-author">{{ book.author.name }}</p>
+                <div class="book-meta">
+                    <span class="book-status {% if book.available_copies > 0 %}available{% else %}borrowed{% endif %}">
+                        {% if book.available_copies > 0 %}Có sẵn{% else %}Đã hết{% endif %}
+                    </span>
+                    {% if book.available_copies > 0 %}
+                    <button class="btn btn-sm add-to-cart" data-id="{{ book.id }}">
+                        <i class="fas fa-plus"></i> Thêm vào đơn
+                    </button>
+                    {% endif %}
+                </div>
+                
+            </div>
+        </div>
+        {% else %}
+        <div class="no-books">Chưa có sách mới</div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="featured-section">
+    <h2 class="section-title">Sách Nổi Bật</h2>
+    <div class="books-grid">
+        {% for book in featured_books %}
+        <div class="book-card" 
+             data-id="{{ book.id }}" 
+             data-title="{{ book.title }}" 
+             data-author="{{ book.author.name }}" 
+             data-image="{{ book.cover_image if book.cover_image else '/static/images/book_default.jpg' }}">
+            <img src="{{ book.cover_image if book.cover_image else '/static/images/book_default.jpg' }}" alt="{{ book.title }}" class="book-cover">
+            <div class="book-info">
+                <h3 class="book-title">
+                    <a href="/books/{{ book.id }}">{{ book.title }}</a>
+                </h3>
+                <p class="book-author">{{ book.author.name }}</p>
+                <div class="book-meta">
+                    <span class="book-status {% if book.available_copies > 0 %}available{% else %}borrowed{% endif %}">
+                        {% if book.available_copies > 0 %}Có sẵn{% else %}Đã mượn{% endif %}
+                    </span>
+                    {% if book.available_copies > 0 %}
+                    <button class="btn btn-sm add-to-cart" data-id="{{ book.id }}">
+                        <i class="fas fa-plus"></i> Thêm vào đơn
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="no-books">Không có sách nổi bật</div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="categories-section">
+    <h2 class="section-title">Khám Phá Theo Danh Mục</h2>
+    <div class="categories-grid">
+        {% for category in categories %}
+        <div class="category-card">
+            <i class="fas {{ category.icon }}"></i>
+            <h3 class="category-title">{{ category.name }}</h3>
+            <p class="category-count">{{ category.book_count }} cuốn sách</p>
+        </div>
+        {% else %}
+        <div class="no-categories">Không có danh mục nào</div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="how-to-section">
+    <h2 class="section-title">Hướng Dẫn Mượn Sách</h2>
+    <div class="steps-container">
+        <div class="step-card">
+            <div class="step-number">1</div>
+            <h3 class="step-title">Đăng Ký Thành Viên</h3>
+            <p>Đăng ký tài khoản trên website hoặc trực tiếp tại thư viện. Cung cấp thông tin cá nhân và nhận thẻ thành viên.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-number">2</div>
+            <h3 class="step-title">Tìm Kiếm & Đặt Sách</h3>
+            <p>Tìm kiếm sách yêu thích và đặt trước trên hệ thống hoặc trực tiếp chọn sách tại thư viện.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-number">3</div>
+            <h3 class="step-title">Nhận & Trả Sách</h3>
+            <p>Nhận sách và hoàn trả đúng hạn. Mỗi thành viên được mượn tối đa 5 cuốn trong thời gian 2 tuần.</p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize cart sync
+        if (typeof window.cartManager !== 'undefined') {
+            window.cartManager.updateAllButtons();
+        }
+        
+        // Có thể thêm JavaScript để xử lý tìm kiếm, tương tác UI...
+        const searchForm = document.querySelector('.search-bar');
+        const searchInput = searchForm.querySelector('input');
+        
+        searchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (searchInput.value.trim()) {
+                window.location.href = `/search?q=${encodeURIComponent(searchInput.value.trim())}`;
+            }
+        });
+    });
+</script>
+{% endblock %}

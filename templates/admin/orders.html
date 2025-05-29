@@ -1,0 +1,732 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Quản lý đơn mượn - Admin{% endblock %}
+
+{% set active_page = 'orders' %}
+
+{% block page_title %}Quản lý đơn mượn{% endblock %}
+
+{% block breadcrumb %}
+<span> / <a href="/admin/orders">Quản lý đơn mượn</a></span>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header-actions">
+    <div class="search-filter">
+        <form method="get" action="/admin/orders" class="search-form">
+            <div class="input-group">
+                <input type="text" name="search" value="{{ search or '' }}" placeholder="Tìm theo tên người mượn, email, mã đơn..." class="form-control">
+                <select name="status" class="form-select">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Chờ duyệt</option>
+                    <option value="active" {% if status == 'active' %}selected{% endif %}>Đang mượn</option>
+                    <option value="overdue" {% if status == 'overdue' %}selected{% endif %}>Quá hạn</option>
+                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Đã trả</option>
+                    <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>Từ chối</option>
+                    <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Đã hủy</option>
+                </select>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+            
+            <div class="advanced-filters">
+                <div class="filter-row">
+                    <div class="filter-item">
+                        <label for="date_range">Thời gian</label>
+                        <select name="date_range" id="date_range" class="form-control">
+                            <option value="">Tất cả thời gian</option>
+                            <option value="today" {% if date_range == 'today' %}selected{% endif %}>Hôm nay</option>
+                            <option value="yesterday" {% if date_range == 'yesterday' %}selected{% endif %}>Hôm qua</option>
+                            <option value="last7days" {% if date_range == 'last7days' %}selected{% endif %}>7 ngày qua</option>
+                            <option value="last30days" {% if date_range == 'last30days' %}selected{% endif %}>30 ngày qua</option>
+                            <option value="thismonth" {% if date_range == 'thismonth' %}selected{% endif %}>Tháng này</option>
+                            <option value="lastmonth" {% if date_range == 'lastmonth' %}selected{% endif %}>Tháng trước</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label for="return_status">Trạng thái trả</label>
+                        <select name="return_status" id="return_status" class="form-control">
+                            <option value="">Tất cả</option>
+                            <option value="returned" {% if return_status == 'returned' %}selected{% endif %}>Đã trả đủ</option>
+                            <option value="partial" {% if return_status == 'partial' %}selected{% endif %}>Trả một phần</option>
+                            <option value="not_returned" {% if return_status == 'not_returned' %}selected{% endif %}>Chưa trả</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label for="book_count">Số sách</label>
+                        <select name="book_count" id="book_count" class="form-control">
+                            <option value="">Tất cả</option>
+                            <option value="1" {% if book_count == '1' %}selected{% endif %}>1 cuốn</option>
+                            <option value="2-3" {% if book_count == '2-3' %}selected{% endif %}>2-3 cuốn</option>
+                            <option value="4-5" {% if book_count == '4-5' %}selected{% endif %}>4-5 cuốn</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-filter"></i> Lọc
+                    </button>
+                    <a href="/admin/orders" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-times"></i> Xóa bộ lọc
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <div class="order-stats">
+        <div class="stat-badge pending">
+            <i class="fas fa-hourglass-half"></i> Chờ duyệt: <span id="pending-count">0</span>
+        </div>
+        <div class="stat-badge active">
+            <i class="fas fa-book-reader"></i> Đang mượn: <span id="active-count">0</span>
+        </div>
+        <div class="stat-badge overdue">
+            <i class="fas fa-exclamation-triangle"></i> Quá hạn: <span id="overdue-count">0</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">Danh sách đơn mượn</div>
+        <div class="card-tools">
+            <span>Tổng số: {{ total_orders }} đơn mượn</span>
+        </div>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if orders %}
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Người mượn</th>
+                        <th>Ngày mượn</th>
+                        <th>Hạn trả</th>
+                        <th>Sách</th>
+                        <th>Trạng thái</th>
+                        <th>Trạng thái trả</th>
+                        <th style="width: 160px">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>{{ order.id }}</td>
+                        <td>
+                            <a href="/admin/users/{{ order.user.id }}" class="user-link">
+                                {{ order.user.full_name }}
+                            </a>
+                        </td>
+                        <td>{{ order.order_date.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            {{ order.due_date.strftime('%d/%m/%Y') }}
+                            {% set days_remaining = (order.due_date - now).days %}
+                            {% if days_remaining < 0 and order.status == 'active' %}
+                            <span class="days-overdue">(quá {{ days_remaining|abs }} ngày)</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="book-count">{{ order.books|length }} cuốn</div>
+                        </td>
+                        <td>
+                            {% if order.status == 'pending' %}
+                            <span class="badge badge-warning">Chờ duyệt</span>
+                            {% elif order.status == 'active' %}
+                            <span class="badge badge-success">Đang mượn</span>
+                            {% elif order.status == 'overdue' %}
+                            <span class="badge badge-danger">Quá hạn</span>
+                            {% elif order.status == 'completed' %}
+                            <span class="badge badge-info">Đã trả</span>
+                            {% elif order.status == 'rejected' %}
+                            <span class="badge badge-secondary">Từ chối</span>
+                            {% elif order.status == 'cancelled' %}
+                            <span class="badge badge-secondary">Đã hủy</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if order.status in ['active', 'overdue'] %}
+                                {% set returned_count = 0 %}
+                                {% for borrow in order.borrows if borrow.is_returned %}
+                                    {% set returned_count = returned_count + 1 %}
+                                {% endfor %}
+                                
+                                {% if returned_count == 0 %}
+                                    <span class="badge badge-danger">Chưa trả</span>
+                                {% elif returned_count < order.books|length %}
+                                    <span class="badge badge-warning">Trả một phần ({{ returned_count }}/{{ order.books|length }})</span>
+                                {% else %}
+                                    <span class="badge badge-success">Đã trả đủ</span>
+                                {% endif %}
+                            {% elif order.status == 'completed' %}
+                                <span class="badge badge-success">Đã trả đủ</span>
+                            {% else %}
+                                <span class="badge badge-secondary">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                <a href="/admin/orders/{{ order.id }}" class="action-btn view" title="Xem chi tiết">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                
+                                {% if order.status == 'pending' %}
+                                <a href="#" class="action-btn edit approve-order" data-id="{{ order.id }}" title="Duyệt đơn">
+                                    <i class="fas fa-check"></i>
+                                </a>
+                                <a href="#" class="action-btn delete reject-order" data-id="{{ order.id }}" title="Từ chối">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                                {% elif order.status in ['active', 'overdue'] %}
+                                <a href="#" class="action-btn success complete-order" data-id="{{ order.id }}" title="Ghi nhận trả sách">
+                                    <i class="fas fa-check-circle"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Phân trang -->
+        {% if total_pages > 1 %}
+        <div class="pagination-container">
+            <ul class="pagination">
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if date_range %}&date_range={{ date_range }}{% endif %}{% if return_status %}&return_status={{ return_status }}{% endif %}{% if book_count %}&book_count={{ book_count }}{% endif %}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for p in range(1, total_pages + 1) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="?page={{ p }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if date_range %}&date_range={{ date_range }}{% endif %}{% if return_status %}&return_status={{ return_status }}{% endif %}{% if book_count %}&book_count={{ book_count }}{% endif %}">
+                        {{ p }}
+                    </a>
+                </li>
+                {% endfor %}
+                
+                {% if page < total_pages %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if date_range %}&date_range={{ date_range }}{% endif %}{% if return_status %}&return_status={{ return_status }}{% endif %}{% if book_count %}&book_count={{ book_count }}{% endif %}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-clipboard-list"></i>
+            </div>
+            <h4>Không tìm thấy đơn mượn nào</h4>
+            <p>Không có đơn mượn nào phù hợp với tìm kiếm của bạn.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal từ chối đơn -->
+<div class="modal" id="reject-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Từ chối đơn mượn</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn sắp từ chối đơn mượn <strong id="reject-order-id"></strong>.</p>
+                <div class="form-group">
+                    <label for="reject-reason">Lý do từ chối</label>
+                    <textarea id="reject-reason" class="form-control" rows="3" placeholder="Nhập lý do từ chối đơn mượn" required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger" id="confirm-reject">Từ chối đơn</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit form when filters change
+    const filterSelects = document.querySelectorAll('.search-form select');
+    filterSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            document.querySelector('.search-form').submit();
+        });
+    });
+    
+    // Cập nhật số liệu thống kê
+    updateOrderStatistics();
+    
+    // Duyệt đơn
+    const approveButtons = document.querySelectorAll('.approve-order');
+    approveButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const orderId = this.getAttribute('data-id');
+            
+            if (confirm('Bạn có chắc chắn muốn duyệt đơn mượn này?')) {
+                approveOrder(orderId);
+            }
+        });
+    });
+    
+    // Từ chối đơn
+    const rejectButtons = document.querySelectorAll('.reject-order');
+    const rejectModal = new bootstrap.Modal(document.getElementById('reject-modal'));
+    const rejectOrderIdElement = document.getElementById('reject-order-id');
+    const rejectReasonInput = document.getElementById('reject-reason');
+    const confirmRejectButton = document.getElementById('confirm-reject');
+    
+    let currentOrderId = null;
+    
+    rejectButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            currentOrderId = this.getAttribute('data-id');
+            rejectOrderIdElement.textContent = '#' + currentOrderId;
+            rejectReasonInput.value = '';
+            rejectModal.show();
+        });
+    });
+    
+    confirmRejectButton.addEventListener('click', function() {
+        const reason = rejectReasonInput.value.trim();
+        if (!reason) {
+            alert('Vui lòng nhập lý do từ chối đơn mượn');
+            return;
+        }
+        
+        rejectOrder(currentOrderId, reason);
+        rejectModal.hide();
+    });
+    
+    // Hoàn thành đơn
+    const completeButtons = document.querySelectorAll('.complete-order');
+    completeButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const orderId = this.getAttribute('data-id');
+            
+            if (confirm('Bạn có chắc chắn muốn đánh dấu đơn mượn này là đã hoàn thành? Điều này đồng nghĩa với việc tất cả sách đã được trả.')) {
+                completeOrder(orderId);
+            }
+        });
+    });
+    
+    // API functions
+    function approveOrder(orderId) {
+        fetch(`/api/borrow-orders/admin/${orderId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAccessToken()}`
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể duyệt đơn mượn');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Đã duyệt đơn mượn thành công!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function rejectOrder(orderId, reason) {
+        fetch(`/api/borrow-orders/admin/${orderId}/reject?reason=${encodeURIComponent(reason)}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAccessToken()}`
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể từ chối đơn mượn');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Đã từ chối đơn mượn thành công!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function completeOrder(orderId) {
+        fetch(`/api/borrow-orders/admin/${orderId}/complete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAccessToken()}`
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json().then(data => {
+                    alert('Đã đánh dấu đơn mượn là đã hoàn thành!');
+                    window.location.reload();
+                });
+            } else if (response.status === 400) {
+                // Có thể còn sách chưa trả
+                return response.json().then(error => {
+                    if (confirm(`${error.detail}\n\nBạn có muốn đánh dấu tất cả sách là đã trả và hoàn thành đơn không?`)) {
+                        // Gọi API đánh dấu tất cả sách là đã trả và hoàn thành đơn
+                        completeOrderWithReturns(orderId);
+                    }
+                });
+            } else {
+                throw new Error('Không thể hoàn thành đơn mượn');
+            }
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function completeOrderWithReturns(orderId) {
+        fetch(`/api/borrow-orders/admin/${orderId}/complete-with-returns`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAccessToken()}`
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể hoàn thành đơn mượn');
+            }
+            return response.json();
+        })
+        .then(data => {
+            let message = 'Đã hoàn thành đơn mượn!';
+            if (data.returned_books) {
+                message = `Đã hoàn thành đơn mượn và đánh dấu ${data.returned_books} sách là đã trả!`;
+            }
+            alert(message);
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    // Utility function to get access token from cookie
+    function getAccessToken() {
+        const getCookie = (name) => {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        };
+        return getCookie('access_token');
+    }
+    
+    function updateOrderStatistics() {
+        fetch('/api/borrow-orders/admin/stats', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAccessToken()}`
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể lấy thống kê đơn mượn');
+            }
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById('pending-count').textContent = data.pending || 0;
+            document.getElementById('active-count').textContent = data.active || 0;
+            document.getElementById('overdue-count').textContent = data.overdue || 0;
+        })
+        .catch(error => {
+            console.error('Lỗi: ' + error.message);
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.admin-header-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.search-filter {
+    flex: 1;
+    max-width: 600px;
+}
+
+.search-form .input-group {
+    display: flex;
+}
+
+.search-form .form-control {
+    border-radius: 4px 0 0 4px;
+}
+
+.search-form .form-select {
+    max-width: 200px;
+    border-radius: 0;
+}
+
+.search-form .btn {
+    border-radius: 0 4px 4px 0;
+}
+
+.order-stats {
+    display: flex;
+    gap: 1rem;
+}
+
+.stat-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.stat-badge i {
+    font-size: 1rem;
+}
+
+.stat-badge.pending {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+}
+
+.stat-badge.active {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #047857;
+}
+
+.stat-badge.overdue {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #b91c1c;
+}
+
+.user-link {
+    color: var(--primary-color);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.user-link:hover {
+    text-decoration: underline;
+}
+
+.days-overdue {
+    color: #ef4444;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.book-count {
+    font-weight: 500;
+}
+
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.pagination {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.page-item {
+    margin: 0 0.25rem;
+}
+
+.page-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    color: var(--text-dark);
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.empty-state {
+    padding: 3rem;
+    text-align: center;
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background-color: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--text-light);
+}
+
+.empty-state h4 {
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-light);
+    margin-bottom: 0;
+}
+
+.action-btn.success {
+    background-color: #10b981;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.modal.show {
+    display: block;
+}
+
+.modal-dialog {
+    max-width: 500px;
+    margin: 1.75rem auto;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.modal-header {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.btn-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    border-top: 1px solid #e5e7eb;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.advanced-filters {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.filter-item label {
+    display: block;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+    color: #495057;
+}
+
+.filter-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+@media (max-width: 767.98px) {
+    .filter-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %} 
+ 

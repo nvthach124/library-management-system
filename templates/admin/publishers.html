@@ -1,0 +1,384 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Quản lý nhà xuất bản - Admin{% endblock %}
+
+{% set active_page = 'publishers' %}
+
+{% block page_title %}Quản lý nhà xuất bản{% endblock %}
+
+{% block breadcrumb %}
+<span> / <a href="/admin/publishers">Quản lý nhà xuất bản</a></span>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header-actions">
+    <div class="search-filter">
+        <form method="get" action="/admin/publishers" class="search-form">
+            <div class="input-group">
+                <input type="text" name="search" value="{{ search or '' }}" placeholder="Tìm theo tên nhà xuất bản..." class="form-control">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#publisherModal">
+        <i class="fas fa-plus"></i> Thêm nhà xuất bản mới
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">Danh sách nhà xuất bản</div>
+        <div class="card-tools">
+            <span>Tổng số: {{ total_publishers }} nhà xuất bản</span>
+        </div>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if publishers %}
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px">ID</th>
+                        <th>Tên nhà xuất bản</th>
+                        <th>Địa chỉ</th>
+                        <th>Điện thoại</th>
+                        <th>Email</th>
+                        <th>Số sách</th>
+                        <th style="width: 100px">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for publisher in publishers %}
+                    <tr>
+                        <td>{{ publisher.id }}</td>
+                        <td>{{ publisher.name }}</td>
+                        <td>{{ publisher.address or '' }}</td>
+                        <td>{{ publisher.phone or '' }}</td>
+                        <td>{{ publisher.email or '' }}</td>
+                        <td>{{ publisher.book_count }}</td>
+                        <td>
+                            <div class="table-actions">
+                                <button type="button" class="action-btn edit edit-publisher" 
+                                        data-id="{{ publisher.id }}"
+                                        data-name="{{ publisher.name }}"
+                                        data-address="{{ publisher.address or '' }}"
+                                        data-phone="{{ publisher.phone or '' }}"
+                                        data-email="{{ publisher.email or '' }}"
+                                        title="Sửa nhà xuất bản">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="action-btn delete delete-publisher" 
+                                        data-id="{{ publisher.id }}"
+                                        data-name="{{ publisher.name }}"
+                                        title="Xóa nhà xuất bản">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if total_pages > 1 %}
+        <div class="pagination-container">
+            <ul class="pagination">
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for p in range(1, total_pages + 1) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="?page={{ p }}{% if search %}&search={{ search }}{% endif %}">
+                        {{ p }}
+                    </a>
+                </li>
+                {% endfor %}
+                
+                {% if page < total_pages %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-building"></i>
+            </div>
+            <h4>Không tìm thấy nhà xuất bản nào</h4>
+            <p>Chưa có nhà xuất bản nào trong hệ thống hoặc không tìm thấy nhà xuất bản phù hợp với tìm kiếm.</p>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#publisherModal">
+                Thêm nhà xuất bản mới
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal thêm/sửa nhà xuất bản -->
+<div class="modal fade" id="publisherModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="publisherForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Thêm nhà xuất bản mới</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="publisherId" name="id">
+                    <div class="form-group mb-3">
+                        <label for="publisherName">Tên nhà xuất bản <span class="text-danger">*</span></label>
+                        <input type="text" id="publisherName" name="name" class="form-control" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="address">Địa chỉ</label>
+                        <input type="text" id="address" name="address" class="form-control">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="phone">Số điện thoại</label>
+                        <input type="tel" id="phone" name="phone" class="form-control" pattern="[0-9]{10,11}">
+                        <small class="text-muted">Định dạng: 10 hoặc 11 chữ số</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const publisherModal = document.getElementById('publisherModal');
+    const publisherForm = document.getElementById('publisherForm');
+    const modalTitle = publisherModal.querySelector('.modal-title');
+    const token = localStorage.getItem('access_token');
+    
+    if (!token) {
+        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+        return;
+    }
+    
+    // Handle form submission
+    publisherForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(publisherForm);
+        const publisherData = {
+            name: formData.get('name'),
+            address: formData.get('address'),
+            phone: formData.get('phone'),
+            email: formData.get('email')
+        };
+        
+        const publisherId = formData.get('id');
+        const isUpdate = !!publisherId;
+        const url = isUpdate ? `/api/publishers/${publisherId}` : '/api/publishers';
+        const method = isUpdate ? 'PUT' : 'POST';
+        
+        try {
+            // Convert to FormData
+            const form = new FormData();
+            Object.keys(publisherData).forEach(key => {
+                if (publisherData[key]) { // Only add if value exists
+                    form.append(key, publisherData[key]);
+                }
+            });
+
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: form
+            });
+            
+            if (!response.ok) {
+                if (response.status === 401) {
+                    window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+                    return;
+                }
+                const error = await response.json();
+                throw new Error(error.detail || 'Không thể lưu nhà xuất bản');
+            }
+            
+            location.reload();
+        } catch (error) {
+            alert('Lỗi: ' + error.message);
+        }
+    });
+    
+    // Handle edit button clicks
+    document.querySelectorAll('.edit-publisher').forEach(button => {
+        button.addEventListener('click', function() {
+            const data = this.dataset;
+            modalTitle.textContent = 'Chỉnh sửa nhà xuất bản';
+            document.getElementById('publisherId').value = data.id;
+            document.getElementById('publisherName').value = data.name;
+            document.getElementById('address').value = data.address;
+            document.getElementById('phone').value = data.phone;
+            document.getElementById('email').value = data.email;
+            
+            new bootstrap.Modal(publisherModal).show();
+        });
+    });
+    
+    // Handle delete button clicks
+    document.querySelectorAll('.delete-publisher').forEach(button => {
+        button.addEventListener('click', async function() {
+            const data = this.dataset;
+            if (confirm(`Bạn có chắc chắn muốn xóa nhà xuất bản "${data.name}"?`)) {
+                try {
+                    const response = await fetch(`/api/publishers/${data.id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+                            return;
+                        }
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Không thể xóa nhà xuất bản');
+                    }
+                    
+                    // Remove row with animation
+                    const row = this.closest('tr');
+                    row.style.backgroundColor = '#ffe6e6';
+                    setTimeout(() => {
+                        row.style.transition = 'opacity 0.5s';
+                        row.style.opacity = '0';
+                        setTimeout(() => row.remove(), 500);
+                    }, 100);
+                    
+                } catch (error) {
+                    alert('Lỗi: ' + error.message);
+                }
+            }
+        });
+    });
+    
+    // Reset form when modal is closed
+    publisherModal.addEventListener('hidden.bs.modal', function() {
+        publisherForm.reset();
+        document.getElementById('publisherId').value = '';
+        modalTitle.textContent = 'Thêm nhà xuất bản mới';
+    });
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.admin-header-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.search-filter {
+    flex: 1;
+    max-width: 400px;
+}
+
+.search-form .input-group {
+    display: flex;
+}
+
+.search-form .form-control {
+    border-radius: 4px 0 0 4px;
+}
+
+.search-form .btn {
+    border-radius: 0 4px 4px 0;
+}
+
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.pagination {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.page-item {
+    margin: 0 0.25rem;
+}
+
+.page-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    color: var(--text-dark);
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.empty-state {
+    padding: 3rem;
+    text-align: center;
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background-color: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--text-light);
+}
+
+.empty-state h4 {
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-light);
+    margin-bottom: 1.5rem;
+}
+</style>
+{% endblock %}

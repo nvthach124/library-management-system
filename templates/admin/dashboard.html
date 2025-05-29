@@ -1,0 +1,298 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Tổng quan - Admin{% endblock %}
+
+{% set active_page = 'dashboard' %}
+
+{% block page_title %}Tổng quan hệ thống{% endblock %}
+
+{% block breadcrumb %}
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon primary">
+            <i class="fas fa-book"></i>
+        </div>
+        <div class="stat-info">
+            <h3>{{ stats.total_books }}</h3>
+            <span>Tổng số sách</span>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon success">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-info">
+            <h3>{{ stats.total_users }}</h3>
+            <span>Người dùng</span>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon warning">
+            <i class="fas fa-clipboard-list"></i>
+        </div>
+        <div class="stat-info">
+            <h3>{{ stats.pending_orders }}</h3>
+            <span>Đơn chờ duyệt</span>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon danger">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="stat-info">
+            <h3>{{ stats.overdue_orders }}</h3>
+            <span>Đơn quá hạn</span>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">Đơn mượn gần đây</h5>
+                <a href="/admin/orders" class="btn btn-sm btn-primary">Xem tất cả</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Người mượn</th>
+                                <th>Ngày mượn</th>
+                                <th>Hạn trả</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in recent_orders %}
+                            <tr>
+                                <td>#{{ order.id }}</td>
+                                <td>{{ order.user.full_name }}</td>
+                                <td>{{ order.order_date.strftime('%d/%m/%Y') }}</td>
+                                <td>{{ order.due_date.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    {% if order.status == 'pending' %}
+                                    <span class="badge badge-warning">Chờ duyệt</span>
+                                    {% elif order.status == 'active' %}
+                                    <span class="badge badge-success">Đang mượn</span>
+                                    {% elif order.status == 'overdue' %}
+                                    <span class="badge badge-danger">Quá hạn</span>
+                                    {% elif order.status == 'completed' %}
+                                    <span class="badge badge-info">Đã trả</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">{{ order.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="table-actions">
+                                        <a href="/admin/orders/{{ order.id }}" class="action-btn view" title="Xem chi tiết"><i class="fas fa-eye"></i></a>
+                                        {% if order.status == 'pending' %}
+                                        <a href="/admin/orders/{{ order.id }}/approve" class="action-btn edit" title="Duyệt đơn"><i class="fas fa-check"></i></a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center">Không có đơn mượn nào gần đây</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">Sách được mượn nhiều nhất</h5>
+            </div>
+            <div class="card-body">
+                <ul class="popular-books-list">
+                    {% for book in popular_books %}
+                    <li>
+                        <div class="popular-book">
+                            <div class="popular-book-cover">
+                                <img src="{{ book.cover_image or '/static/images/book_default.svg' }}" alt="{{ book.title }}">
+                            </div>
+                            <div class="popular-book-info">
+                                <h6>{{ book.title }}</h6>
+                                <p>{{ book.author.name }}</p>
+                                <span class="borrow-count">{{ book.borrow_count }} lượt mượn</span>
+                            </div>
+                        </div>
+                    </li>
+                    {% else %}
+                    <li class="text-center">Không có dữ liệu</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Hoạt động gần đây</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="activity-list">
+                    {% for activity in recent_activities %}
+                    <li class="activity-item">
+                        <div class="activity-icon {{ activity.type }}">
+                            <i class="fas {{ activity.icon }}"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">{{ activity.title }}</div>
+                            <div class="activity-subtitle">{{ activity.subtitle }}</div>
+                            <div class="activity-time">{{ activity.time }}</div>
+                        </div>
+                    </li>
+                    {% else %}
+                    <li class="text-center py-3">Không có hoạt động nào gần đây</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .popular-books-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .popular-books-list li {
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .popular-books-list li:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+    
+    .popular-book {
+        display: flex;
+        align-items: center;
+    }
+    
+    .popular-book-cover {
+        width: 60px;
+        height: 80px;
+        margin-right: 1rem;
+        background-color: #f3f4f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .popular-book-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .popular-book-info h6 {
+        margin: 0 0 0.25rem;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: var(--text-dark);
+    }
+    
+    .popular-book-info p {
+        margin: 0 0 0.25rem;
+        font-size: 0.85rem;
+        color: var(--text-light);
+    }
+    
+    .borrow-count {
+        font-size: 0.8rem;
+        color: var(--primary-color);
+        font-weight: 500;
+    }
+    
+    .activity-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .activity-item {
+        display: flex;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    
+    .activity-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1rem;
+        color: white;
+    }
+    
+    .activity-icon.primary {
+        background-color: var(--primary-color);
+    }
+    
+    .activity-icon.success {
+        background-color: var(--success);
+    }
+    
+    .activity-icon.warning {
+        background-color: var(--warning);
+    }
+    
+    .activity-icon.danger {
+        background-color: var(--danger);
+    }
+    
+    .activity-content {
+        flex: 1;
+    }
+    
+    .activity-title {
+        font-size: 0.95rem;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+    
+    .activity-subtitle {
+        font-size: 0.85rem;
+        color: var(--text-light);
+        margin-bottom: 0.25rem;
+    }
+    
+    .activity-time {
+        font-size: 0.75rem;
+        color: var(--text-lighter);
+    }
+</style>
+{% endblock %} 
+ 

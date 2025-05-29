@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Đăng Ký - Thư Viện Tri Thức{% endblock %}
+
+{% block styles %}
+<style>
+    .auth-container {
+        max-width: 600px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+    }
+    
+    .auth-title {
+        font-size: 1.8rem;
+        color: var(--primary-color);
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group {
+        flex: 1;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-row .form-group {
+        margin-bottom: 0;
+    }
+    
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: var(--secondary-color);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+    
+    .auth-btn {
+        padding: 0.75rem;
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    
+    .auth-btn:hover {
+        background-color: #1e40af;
+    }
+    
+    .auth-links {
+        margin-top: 1.5rem;
+        text-align: center;
+    }
+    
+    .auth-links a {
+        color: var(--secondary-color);
+        text-decoration: none;
+    }
+    
+    .auth-links a:hover {
+        text-decoration: underline;
+    }
+    
+    .auth-message {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .auth-error {
+        background-color: #fee2e2;
+        color: #b91c1c;
+    }
+    
+    .auth-success {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    
+    .password-strength {
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+    }
+    
+    .weak {
+        color: #dc2626;
+    }
+    
+    .medium {
+        color: #d97706;
+    }
+    
+    .strong {
+        color: #059669;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="auth-container">
+        <h1 class="auth-title">Đăng Ký Tài Khoản</h1>
+        
+        {% if error %}
+        <div class="auth-message auth-error">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        {% if success %}
+        <div class="auth-message auth-success">
+            {{ success }}
+        </div>
+        {% endif %}
+        
+        <form class="auth-form" id="register-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="full_name">Họ và tên</label>
+                    <input class="form-input" type="text" id="full_name" name="full_name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="email">Email</label>
+                    <input class="form-input" type="email" id="email" name="email" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="phone_number">Số điện thoại</label>
+                    <input class="form-input" type="tel" id="phone_number" name="phone_number">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="username">Tên đăng nhập</label>
+                    <input class="form-input" type="text" id="username" name="username" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="address">Địa chỉ</label>
+                <input class="form-input" type="text" id="address" name="address">
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="password">Mật khẩu</label>
+                    <input class="form-input" type="password" id="password" name="password" required>
+                    <div class="password-strength" id="password-strength"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="confirm_password">Xác nhận mật khẩu</label>
+                    <input class="form-input" type="password" id="confirm_password" name="confirm_password" required>
+                </div>
+            </div>
+            
+            <button type="submit" class="auth-btn">Đăng Ký</button>
+            
+            <div class="auth-links">
+                <p>Đã có tài khoản? <a href="/login">Đăng nhập ngay</a></p>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('register-form');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirm_password');
+        const passwordStrength = document.getElementById('password-strength');
+        
+        // Kiểm tra độ mạnh mật khẩu
+        passwordInput.addEventListener('input', function() {
+            const password = passwordInput.value;
+            let strength = 0;
+            let message = '';
+            
+            if (password.length >= 8) strength += 1;
+            if (password.match(/[a-z]/) && password.match(/[A-Z]/)) strength += 1;
+            if (password.match(/\d/)) strength += 1;
+            if (password.match(/[^a-zA-Z\d]/)) strength += 1;
+            
+            switch (strength) {
+                case 0:
+                case 1:
+                    message = '<span class="weak">Yếu</span>';
+                    break;
+                case 2:
+                case 3:
+                    message = '<span class="medium">Trung bình</span>';
+                    break;
+                case 4:
+                    message = '<span class="strong">Mạnh</span>';
+                    break;
+            }
+            
+            passwordStrength.innerHTML = 'Độ mạnh: ' + message;
+        });
+        
+        // Xử lý sự kiện submit form
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Kiểm tra mật khẩu trùng khớp
+            if (passwordInput.value !== confirmPasswordInput.value) {
+                alert('Mật khẩu và xác nhận mật khẩu không khớp');
+                return;
+            }
+            
+            // Tạo dữ liệu để gửi
+            const userData = {
+                full_name: document.getElementById('full_name').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                phone_number: document.getElementById('phone_number').value.trim(),
+                address: document.getElementById('address').value.trim(),
+                username: document.getElementById('username').value.trim(),
+                password: passwordInput.value
+            };
+            
+            // Get the current hostname and port
+            const baseUrl = window.location.protocol + '//' + window.location.host;
+            
+            // Gửi request API đăng ký
+            fetch(`${baseUrl}/api/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(userData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.detail || 'Đăng ký không thành công');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('Đăng ký tài khoản thành công! Vui lòng đăng nhập.');
+                window.location.href = '/login';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(error.message || 'Đăng ký không thành công. Vui lòng thử lại.');
+            });
+        });
+    });
+</script>
+{% endblock %} 
+ 

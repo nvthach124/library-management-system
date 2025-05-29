@@ -1,0 +1,643 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Thông tin người dùng - Admin{% endblock %}
+
+{% set active_page = 'users' %}
+
+{% block page_title %}Thông tin người dùng{% endblock %}
+
+{% block breadcrumb %}
+<span> / <a href="/admin/users">Quản lý người dùng</a></span>
+<span> / <a href="#">{{ user.full_name }}</a></span>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <div class="card-title">Thông tin cá nhân</div>
+                
+                <div class="card-tools">
+                    {% if user.is_active %}
+                    <span class="badge badge-success">Đang hoạt động</span>
+                    {% else %}
+                    <span class="badge badge-danger">Đã khóa</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <div class="user-profile">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    
+                    <h4 class="user-name">{{ user.full_name }}</h4>
+                    <p class="user-role">
+                        {% if user.is_admin %}
+                        <span class="badge badge-primary">Quản trị viên</span>
+                        {% else %}
+                        <span class="badge badge-info">Người dùng</span>
+                        {% endif %}
+                    </p>
+                    
+                    <div class="user-actions">
+                        {% if not user.is_admin or current_user.id == user.id %}
+                            {% if user.is_active %}
+                            <button class="btn btn-warning btn-sm lock-user" data-id="{{ user.id }}" data-name="{{ user.full_name }}">
+                                <i class="fas fa-lock"></i> Khóa tài khoản
+                            </button>
+                            {% else %}
+                            <button class="btn btn-success btn-sm unlock-user" data-id="{{ user.id }}" data-name="{{ user.full_name }}">
+                                <i class="fas fa-unlock"></i> Mở khóa tài khoản
+                            </button>
+                            {% endif %}
+                        {% endif %}
+                        
+                        {% if not user.is_admin and current_user.id != user.id %}
+                        <button class="btn btn-primary btn-sm make-admin" data-id="{{ user.id }}">
+                            <i class="fas fa-user-shield"></i> Cấp quyền quản trị
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="user-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Tên đăng nhập</div>
+                        <div class="detail-value">{{ user.username }}</div>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label">Email</div>
+                        <div class="detail-value">{{ user.email }}</div>
+                    </div>
+                    
+                    {% if user.phone_number %}
+                    <div class="detail-item">
+                        <div class="detail-label">Số điện thoại</div>
+                        <div class="detail-value">{{ user.phone_number }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if user.address %}
+                    <div class="detail-item">
+                        <div class="detail-label">Địa chỉ</div>
+                        <div class="detail-value">{{ user.address }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="detail-item">
+                        <div class="detail-label">Ngày tạo</div>
+                        <div class="detail-value">{{ user.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User statistics -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Thống kê mượn sách</div>
+            </div>
+            
+            <div class="card-body">
+                <div class="user-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ borrow_orders|length }}</div>
+                        <div class="stat-label">Tổng đơn mượn</div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <div class="stat-value">{{ active_orders|default(0) }}</div>
+                        <div class="stat-label">Đang mượn</div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <div class="stat-value">{{ overdue_orders|default(0) }}</div>
+                        <div class="stat-label">Quá hạn</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Lịch sử mượn sách</div>
+            </div>
+            
+            <div class="card-body p-0">
+                {% if borrow_orders %}
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Ngày mượn</th>
+                                <th>Hạn trả</th>
+                                <th>Sách</th>
+                                <th>Trạng thái</th>
+                                <th style="width: 100px">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in borrow_orders %}
+                            <tr>
+                                <td>{{ order.id }}</td>
+                                <td>{{ order.order_date.strftime('%d/%m/%Y') }}</td>
+                                <td>{{ order.due_date.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <div class="books-list">
+                                        {% for book in order.books %}
+                                        <div class="book-item">
+                                            <img src="{{ book.cover_image or '/static/images/book_default.svg' }}" alt="{{ book.title }}" class="book-thumbnail">
+                                            <span class="book-title" title="{{ book.title }}">{{ book.title }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if order.status == 'pending' %}
+                                    <span class="badge badge-warning">Chờ duyệt</span>
+                                    {% elif order.status == 'active' %}
+                                    <span class="badge badge-success">Đang mượn</span>
+                                    {% elif order.status == 'overdue' %}
+                                    <span class="badge badge-danger">Quá hạn</span>
+                                    {% elif order.status == 'completed' %}
+                                    <span class="badge badge-info">Đã trả</span>
+                                    {% elif order.status == 'rejected' %}
+                                    <span class="badge badge-secondary">Từ chối</span>
+                                    {% elif order.status == 'cancelled' %}
+                                    <span class="badge badge-secondary">Đã hủy</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="table-actions">
+                                        <a href="/admin/orders/{{ order.id }}" class="action-btn view" title="Xem chi tiết">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        
+                                        {% if order.status == 'pending' %}
+                                        <a href="#" class="action-btn approve-order" data-id="{{ order.id }}" title="Duyệt đơn">
+                                            <i class="fas fa-check"></i>
+                                        </a>
+                                        {% elif order.status in ['active', 'overdue'] %}
+                                        <a href="#" class="action-btn complete-order" data-id="{{ order.id }}" title="Đánh dấu hoàn thành">
+                                            <i class="fas fa-check-circle"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <h4>Chưa có lịch sử mượn sách</h4>
+                    <p>Người dùng này chưa mượn sách nào.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal khóa tài khoản -->
+<div class="modal" id="lock-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Khóa tài khoản</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn sắp khóa tài khoản của <strong id="lock-user-name"></strong>.</p>
+                <div class="form-group">
+                    <label for="lock-reason">Lý do khóa tài khoản</label>
+                    <textarea id="lock-reason" class="form-control" rows="3" placeholder="Nhập lý do khóa tài khoản" required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger" id="confirm-lock">Khóa tài khoản</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Khóa tài khoản
+    const lockButtons = document.querySelectorAll('.lock-user');
+    const lockModal = new bootstrap.Modal(document.getElementById('lock-modal'));
+    const lockUserNameElement = document.getElementById('lock-user-name');
+    const lockReasonInput = document.getElementById('lock-reason');
+    const confirmLockButton = document.getElementById('confirm-lock');
+    
+    let currentUserId = null;
+    
+    lockButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            currentUserId = this.getAttribute('data-id');
+            const userName = this.getAttribute('data-name');
+            lockUserNameElement.textContent = userName;
+            lockReasonInput.value = '';
+            lockModal.show();
+        });
+    });
+    
+    confirmLockButton.addEventListener('click', function() {
+        const reason = lockReasonInput.value.trim();
+        if (!reason) {
+            alert('Vui lòng nhập lý do khóa tài khoản');
+            return;
+        }
+        
+        lockUser(currentUserId, reason);
+        lockModal.hide();
+    });
+    
+    // Mở khóa tài khoản
+    const unlockButtons = document.querySelectorAll('.unlock-user');
+    unlockButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const userId = this.getAttribute('data-id');
+            const userName = this.getAttribute('data-name');
+            
+            if (confirm(`Bạn có chắc chắn muốn mở khóa tài khoản của ${userName}?`)) {
+                unlockUser(userId);
+            }
+        });
+    });
+    
+    // Cấp quyền admin
+    const makeAdminButtons = document.querySelectorAll('.make-admin');
+    makeAdminButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const userId = this.getAttribute('data-id');
+            
+            if (confirm('Bạn có chắc chắn muốn cấp quyền quản trị viên cho người dùng này?')) {
+                toggleAdminRole(userId, true);
+            }
+        });
+    });
+    
+    // Duyệt đơn
+    const approveButtons = document.querySelectorAll('.approve-order');
+    approveButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const orderId = this.getAttribute('data-id');
+            
+            if (confirm('Bạn có chắc chắn muốn duyệt đơn mượn này?')) {
+                approveOrder(orderId);
+            }
+        });
+    });
+    
+    // Hoàn thành đơn
+    const completeButtons = document.querySelectorAll('.complete-order');
+    completeButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const orderId = this.getAttribute('data-id');
+            
+            if (confirm('Bạn có chắc chắn muốn đánh dấu đơn mượn này là đã hoàn thành? Điều này đồng nghĩa với việc tất cả sách đã được trả.')) {
+                completeOrder(orderId);
+            }
+        });
+    });
+    
+    // API functions
+    function lockUser(userId, reason) {
+        fetch(`/api/users/admin/users/${userId}/lock?reason=${encodeURIComponent(reason)}`, {
+            method: 'POST',
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể khóa tài khoản');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Đã khóa tài khoản thành công!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function unlockUser(userId) {
+        fetch(`/api/users/admin/users/${userId}/unlock`, {
+            method: 'POST',
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể mở khóa tài khoản');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Đã mở khóa tài khoản thành công!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function toggleAdminRole(userId, makeAdmin) {
+        fetch(`/api/users/admin/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                is_admin: makeAdmin
+            }),
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể thay đổi quyền quản trị');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Đã cấp quyền quản trị viên thành công!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function approveOrder(orderId) {
+        fetch(`/api/borrow-orders/admin/${orderId}/approve`, {
+            method: 'POST',
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể duyệt đơn mượn');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Đã duyệt đơn mượn thành công!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function completeOrder(orderId) {
+        fetch(`/api/borrow-orders/admin/${orderId}/complete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAccessToken()}`
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể hoàn thành đơn mượn');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Đã đánh dấu đơn mượn là đã hoàn thành!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    // Add utility function to get access token
+    function getAccessToken() {
+        const getCookie = (name) => {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        };
+        return getCookie('access_token');
+    }
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.user-profile {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.user-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    margin: 0 auto 1rem;
+}
+
+.user-name {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.user-role {
+    margin-bottom: 1rem;
+}
+
+.user-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.user-details {
+    margin-top: 1.5rem;
+}
+
+.detail-item {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-label {
+    font-size: 0.875rem;
+    color: var(--text-light);
+    margin-bottom: 0.25rem;
+}
+
+.detail-value {
+    font-weight: 500;
+}
+
+.user-stats {
+    display: flex;
+    justify-content: space-between;
+}
+
+.stat-item {
+    text-align: center;
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    color: var(--primary-color);
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-light);
+}
+
+.books-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.book-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.book-thumbnail {
+    width: 30px;
+    height: 40px;
+    border-radius: 2px;
+    object-fit: cover;
+}
+
+.book-title {
+    font-size: 0.875rem;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.empty-state {
+    padding: 3rem;
+    text-align: center;
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background-color: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--text-light);
+}
+
+.empty-state h4 {
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-light);
+    margin-bottom: 0;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.modal.show {
+    display: block;
+}
+
+.modal-dialog {
+    max-width: 500px;
+    margin: 1.75rem auto;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.modal-header {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.btn-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    border-top: 1px solid #e5e7eb;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+</style>
+{% endblock %} 
+ 

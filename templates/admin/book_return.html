@@ -1,0 +1,737 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Quản Lý Trả Sách - Admin{% endblock %}
+
+{% block styles %}
+<style>
+    .book-card {
+        display: flex;
+        padding: 1rem;
+        border-radius: 8px;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1rem;
+    }
+    
+    .book-cover {
+        width: 80px;
+        height: 120px;
+        min-width: 80px;
+        object-fit: cover;
+        border-radius: 4px;
+        margin-right: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .book-details {
+        flex: 1;
+    }
+    
+    .book-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .book-info {
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .book-status {
+        margin-top: 0.5rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        display: inline-block;
+    }
+    
+    .status-active {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-overdue {
+        background-color: #fee2e2;
+        color: #b91c1c;
+    }
+    
+    .status-returned {
+        background-color: #e0e7ff;
+        color: #3730a3;
+    }
+    
+    .overdue-info {
+        color: #b91c1c;
+        font-weight: 500;
+    }
+    
+    .return-form {
+        margin-top: 1rem;
+        padding: 1rem;
+        border-radius: 8px;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+    
+    .form-input, .form-select, .form-textarea {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+    }
+    
+    .form-textarea {
+        min-height: 100px;
+    }
+    
+    .condition-select {
+        display: flex;
+        margin-bottom: 1rem;
+    }
+    
+    .condition-option {
+        flex: 1;
+        text-align: center;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        cursor: pointer;
+    }
+    
+    .condition-option:first-child {
+        border-top-left-radius: 4px;
+        border-bottom-left-radius: 4px;
+    }
+    
+    .condition-option:last-child {
+        border-top-right-radius: 4px;
+        border-bottom-right-radius: 4px;
+    }
+    
+    .condition-option.selected {
+        background-color: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+    
+    .action-buttons {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 1rem;
+    }
+    
+    .btn-cancel {
+        margin-right: 0.5rem;
+    }
+    
+    .borrow-history {
+        margin-top: 1.5rem;
+    }
+    
+    .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .borrow-info {
+        display: flex;
+        flex-wrap: wrap;
+    }
+    
+    .borrow-info-item {
+        margin-right: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .borrow-info-label {
+        font-weight: 500;
+        font-size: 0.9rem;
+        color: #6b7280;
+    }
+    
+    .borrow-info-value {
+        font-size: 0.9rem;
+    }
+    
+    .success-message {
+        padding: 1rem;
+        background-color: #d1fae5;
+        color: #065f46;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+    }
+    
+    .filters {
+        display: flex;
+        margin-bottom: 1.5rem;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .filter-group {
+        min-width: 200px;
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}Quản Lý Trả Sách{% endblock %}
+
+{% block breadcrumb %}
+<span> / </span>
+<span>Quản lý trả sách</span>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Success message if book was returned -->
+    {% if success_message %}
+    <div class="success-message">
+        {{ success_message }}
+    </div>
+    {% endif %}
+    
+    <!-- Search section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Tra cứu sách đang mượn</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="search-input">Tìm theo tên sách, mã sách hoặc người mượn</label>
+                        <div class="input-group">
+                            <input type="text" id="search-input" class="form-control" placeholder="Nhập từ khóa...">
+                            <button class="btn btn-primary" id="search-btn">
+                                <i class="fas fa-search"></i> Tìm kiếm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Tìm theo trạng thái</label>
+                        <div class="btn-group w-100" role="group">
+                            <button type="button" class="btn btn-outline-primary active" data-status="all">Tất cả</button>
+                            <button type="button" class="btn btn-outline-primary" data-status="active">Đang mượn</button>
+                            <button type="button" class="btn btn-outline-danger" data-status="overdue">Quá hạn</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Book return form or book info -->
+    <div class="row">
+        <!-- Left column - Borrowed books list -->
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Sách đang được mượn</h5>
+                    <span class="badge bg-primary" id="books-count">0</span>
+                </div>
+                <div class="card-body">
+                    <div class="filters">
+                        <div class="filter-group">
+                            <label for="sort-by">Sắp xếp theo</label>
+                            <select id="sort-by" class="form-select">
+                                <option value="due_date_asc">Ngày hạn trả (sớm nhất)</option>
+                                <option value="due_date_desc">Ngày hạn trả (muộn nhất)</option>
+                                <option value="borrow_date_asc">Ngày mượn (cũ nhất)</option>
+                                <option value="borrow_date_desc">Ngày mượn (mới nhất)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="borrowed-books-list">
+                        <!-- Books will be loaded here -->
+                        <div class="text-center p-5">
+                            <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                            <p>Đang tải danh sách sách...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="d-flex justify-content-center mt-4">
+                        <ul class="pagination" id="pagination">
+                            <!-- Pagination will be generated -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right column - Return form -->
+        <div class="col-md-5">
+            <div class="card" id="return-form-container">
+                <div class="card-header">
+                    <h5 class="mb-0">Ghi nhận trả sách</h5>
+                </div>
+                <div class="card-body">
+                    <div id="no-book-selected" class="text-center p-5">
+                        <i class="fas fa-info-circle fa-2x mb-3 text-primary"></i>
+                        <p>Vui lòng chọn sách cần trả từ danh sách bên trái.</p>
+                    </div>
+                    
+                    <div id="return-form" style="display: none;">
+                        <div class="book-info-display mb-4">
+                            <!-- Selected book info will be displayed here -->
+                        </div>
+                        
+                        <form id="book-return-form">
+                            <input type="hidden" id="borrow-id" name="borrow_id">
+                            
+                            <div class="form-group">
+                                <label class="form-label">Tình trạng sách</label>
+                                <div class="condition-select">
+                                    <div class="condition-option selected" data-value="true">
+                                        <i class="fas fa-check-circle"></i> Tốt
+                                    </div>
+                                    <div class="condition-option" data-value="false">
+                                        <i class="fas fa-exclamation-circle"></i> Có vấn đề
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="condition-notes">Ghi chú tình trạng</label>
+                                <textarea class="form-textarea" id="condition-notes" name="condition_notes" placeholder="Mô tả tình trạng sách nếu có vấn đề..."></textarea>
+                            </div>
+                            
+                            <div class="form-group overdue-fine" style="display: none;">
+                                <label class="form-label" for="late-fine">Phạt trả muộn (đồng)</label>
+                                <input type="number" class="form-input" id="late-fine" name="late_fine" value="0" min="0">
+                            </div>
+                            
+                            <div class="action-buttons">
+                                <button type="button" class="btn btn-outline-secondary btn-cancel">Hủy</button>
+                                <button type="submit" class="btn btn-primary">Xác nhận trả sách</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Elements
+        const searchInput = document.getElementById('search-input');
+        const searchBtn = document.getElementById('search-btn');
+        const statusButtons = document.querySelectorAll('[data-status]');
+        const sortSelect = document.getElementById('sort-by');
+        const borrowedBooksList = document.getElementById('borrowed-books-list');
+        const booksCount = document.getElementById('books-count');
+        const pagination = document.getElementById('pagination');
+        const returnForm = document.getElementById('return-form');
+        const noBookSelected = document.getElementById('no-book-selected');
+        const bookReturnForm = document.getElementById('book-return-form');
+        const cancelBtn = document.querySelector('.btn-cancel');
+        const conditionOptions = document.querySelectorAll('.condition-option');
+        const conditionNotes = document.getElementById('condition-notes');
+        const lateFine = document.getElementById('late-fine');
+        const borrowId = document.getElementById('borrow-id');
+        
+        // State
+        let currentPage = 1;
+        let totalPages = 1;
+        let selectedStatus = 'all';
+        let searchQuery = '';
+        let selectedBook = null;
+        let overdueDays = 0;
+        
+        // Event listeners
+        searchBtn.addEventListener('click', function() {
+            searchQuery = searchInput.value.trim();
+            currentPage = 1;
+            loadBorrowedBooks();
+        });
+        
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                searchQuery = searchInput.value.trim();
+                currentPage = 1;
+                loadBorrowedBooks();
+            }
+        });
+        
+        statusButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                statusButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                selectedStatus = this.dataset.status;
+                currentPage = 1;
+                loadBorrowedBooks();
+            });
+        });
+        
+        sortSelect.addEventListener('change', function() {
+            loadBorrowedBooks();
+        });
+        
+        cancelBtn.addEventListener('click', function() {
+            resetReturnForm();
+        });
+        
+        conditionOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                conditionOptions.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                
+                // Show/hide condition notes based on selection
+                if (this.dataset.value === 'false') {
+                    conditionNotes.parentElement.style.display = 'block';
+                } else {
+                    conditionNotes.parentElement.style.display = 'none';
+                }
+            });
+        });
+        
+        bookReturnForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleBookReturn();
+        });
+        
+        // Initial load
+        loadBorrowedBooks();
+        
+        // Functions
+        function loadBorrowedBooks() {
+            borrowedBooksList.innerHTML = `
+                <div class="text-center p-5">
+                    <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                    <p>Đang tải danh sách sách...</p>
+                </div>
+            `;
+            
+            // Build API URL with filters
+            let apiUrl = '/api/borrow-orders/admin/borrowing-history?';
+            apiUrl += `page=${currentPage}&limit=10`;
+            
+            if (selectedStatus !== 'all') {
+                apiUrl += `&status=${selectedStatus}`;
+            }
+            
+            if (searchQuery) {
+                apiUrl += `&search=${encodeURIComponent(searchQuery)}`;
+            }
+            
+            // Add sort parameter
+            const sortValue = sortSelect.value;
+            if (sortValue) {
+                apiUrl += `&sort=${sortValue}`;
+            }
+            
+            // Fetch borrowed books
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Không thể tải dữ liệu');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    renderBorrowedBooks(data);
+                })
+                .catch(error => {
+                    borrowedBooksList.innerHTML = `
+                        <div class="text-center p-5">
+                            <i class="fas fa-exclamation-circle fa-2x mb-3 text-danger"></i>
+                            <p>Đã xảy ra lỗi: ${error.message}</p>
+                        </div>
+                    `;
+                });
+        }
+        
+        function renderBorrowedBooks(data) {
+            const { items, total, page, limit, pages } = data;
+            
+            // Update count
+            booksCount.textContent = total;
+            
+            // Update pagination
+            currentPage = page;
+            totalPages = pages;
+            renderPagination();
+            
+            // Render books
+            if (items.length === 0) {
+                borrowedBooksList.innerHTML = `
+                    <div class="text-center p-5">
+                        <i class="fas fa-search fa-2x mb-3 text-primary"></i>
+                        <p>Không tìm thấy sách đang mượn phù hợp với điều kiện tìm kiếm.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            borrowedBooksList.innerHTML = '';
+            
+            items.forEach(borrow => {
+                // Only show books that are not returned
+                if (borrow.is_returned) return;
+                
+                const isOverdue = new Date(borrow.due_date) < new Date();
+                const statusClass = isOverdue ? 'status-overdue' : 'status-active';
+                const statusText = isOverdue ? 'Quá hạn' : 'Đang mượn';
+                
+                // Calculate days overdue if applicable
+                let overdueInfo = '';
+                if (isOverdue) {
+                    const dueDate = new Date(borrow.due_date);
+                    const today = new Date();
+                    const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+                    overdueInfo = `<div class="overdue-info">Quá hạn ${daysOverdue} ngày</div>`;
+                }
+                
+                const bookCard = document.createElement('div');
+                bookCard.className = 'book-card';
+                bookCard.innerHTML = `
+                    <img src="${borrow.book_cover || '/static/images/book_default.svg'}" alt="${borrow.book_title}" class="book-cover">
+                    <div class="book-details">
+                        <h3 class="book-title">${borrow.book_title}</h3>
+                        <div class="book-info">
+                            <div><strong>Người mượn:</strong> ${borrow.user_name}</div>
+                            <div><strong>Ngày mượn:</strong> ${borrow.borrow_date}</div>
+                            <div><strong>Hạn trả:</strong> ${borrow.due_date}</div>
+                            ${overdueInfo}
+                        </div>
+                        <div>
+                            <span class="book-status ${statusClass}">${statusText}</span>
+                            <button class="btn btn-sm btn-primary float-end return-book-btn" data-id="${borrow.id}">
+                                Ghi nhận trả
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Add click event to the return button
+                const returnBtn = bookCard.querySelector('.return-book-btn');
+                returnBtn.addEventListener('click', function() {
+                    selectBookForReturn(borrow);
+                });
+                
+                borrowedBooksList.appendChild(bookCard);
+            });
+        }
+        
+        function renderPagination() {
+            pagination.innerHTML = '';
+            
+            // Previous button
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a>`;
+            pagination.appendChild(prevLi);
+            
+            if (currentPage > 1) {
+                prevLi.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    currentPage--;
+                    loadBorrowedBooks();
+                });
+            }
+            
+            // Page numbers
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+            
+            if (endPage - startPage < 4 && startPage > 1) {
+                startPage = Math.max(1, endPage - 4);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageLi = document.createElement('li');
+                pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                pageLi.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                
+                if (i !== currentPage) {
+                    pageLi.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        currentPage = i;
+                        loadBorrowedBooks();
+                    });
+                }
+                
+                pagination.appendChild(pageLi);
+            }
+            
+            // Next button
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a>`;
+            pagination.appendChild(nextLi);
+            
+            if (currentPage < totalPages) {
+                nextLi.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    currentPage++;
+                    loadBorrowedBooks();
+                });
+            }
+        }
+        
+        function selectBookForReturn(borrow) {
+            selectedBook = borrow;
+            borrowId.value = borrow.id;
+            
+            // Show return form
+            noBookSelected.style.display = 'none';
+            returnForm.style.display = 'block';
+            
+            // Render book info
+            const bookInfoDisplay = document.querySelector('.book-info-display');
+            const isOverdue = new Date(borrow.due_date) < new Date();
+            
+            // Calculate days overdue if applicable
+            let overdueInfo = '';
+            overdueDays = 0;
+            
+            if (isOverdue) {
+                const dueDate = new Date(borrow.due_date);
+                const today = new Date();
+                overdueDays = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+                overdueInfo = `<div class="overdue-info">Quá hạn ${overdueDays} ngày</div>`;
+                
+                // Show overdue fine section
+                document.querySelector('.overdue-fine').style.display = 'block';
+                
+                // Set default fine (5,000 VND per day)
+                lateFine.value = overdueDays * 5000;
+            } else {
+                // Hide overdue fine section
+                document.querySelector('.overdue-fine').style.display = 'none';
+                lateFine.value = 0;
+            }
+            
+            bookInfoDisplay.innerHTML = `
+                <div class="book-card">
+                    <img src="${borrow.book_cover || '/static/images/book_default.svg'}" alt="${borrow.book_title}" class="book-cover">
+                    <div class="book-details">
+                        <h3 class="book-title">${borrow.book_title}</h3>
+                        <div class="book-info">
+                            <div><strong>Người mượn:</strong> ${borrow.user_name}</div>
+                            <div><strong>Ngày mượn:</strong> ${borrow.borrow_date}</div>
+                            <div><strong>Hạn trả:</strong> ${borrow.due_date}</div>
+                            ${overdueInfo}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Scroll to form
+            document.getElementById('return-form-container').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function resetReturnForm() {
+            selectedBook = null;
+            
+            // Hide return form
+            noBookSelected.style.display = 'block';
+            returnForm.style.display = 'none';
+            
+            // Reset form fields
+            bookReturnForm.reset();
+            conditionOptions[0].classList.add('selected');
+            conditionOptions[1].classList.remove('selected');
+            conditionNotes.parentElement.style.display = 'none';
+            document.querySelector('.overdue-fine').style.display = 'none';
+        }
+        
+        function handleBookReturn() {
+            if (!selectedBook) return;
+            
+            // Get form data
+            const condition = document.querySelector('.condition-option.selected').dataset.value === 'true';
+            const notes = conditionNotes.value;
+            const fine = parseInt(lateFine.value) || 0;
+            
+            // Prepare request data
+            const requestData = {
+                borrow_id: parseInt(borrowId.value),
+                condition_ok: condition,
+                condition_notes: notes,
+                late_fine: fine
+            };
+            
+            // Show loading
+            bookReturnForm.querySelector('button[type="submit"]').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+            bookReturnForm.querySelector('button[type="submit"]').disabled = true;
+            
+            // Call API
+            fetch('/api/borrow-orders/admin/handle-return', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getAccessToken()}`
+                },
+                body: JSON.stringify(requestData),
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.detail || 'Không thể ghi nhận trả sách');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Show success message
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Thành công!',
+                    text: 'Đã ghi nhận trả sách thành công.',
+                    confirmButtonText: 'OK'
+                });
+                
+                // Reset form and reload books
+                resetReturnForm();
+                loadBorrowedBooks();
+            })
+            .catch(error => {
+                // Reset button state
+                bookReturnForm.querySelector('button[type="submit"]').innerHTML = 'Xác nhận trả sách';
+                bookReturnForm.querySelector('button[type="submit"]').disabled = false;
+                
+                // Show error
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi!',
+                    text: error.message,
+                    confirmButtonText: 'OK'
+                });
+            });
+        }
+        
+        // Add utility function to get access token
+        function getAccessToken() {
+            const getCookie = (name) => {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+                return null;
+            };
+            return getCookie('access_token');
+        }
+    });
+</script>
+{% endblock %} 

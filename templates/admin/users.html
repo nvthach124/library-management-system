@@ -1,0 +1,464 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Quản lý người dùng - Admin{% endblock %}
+
+{% set active_page = 'users' %}
+
+{% block page_title %}Quản lý người dùng{% endblock %}
+
+{% block breadcrumb %}
+<span> / <a href="/admin/users">Quản lý người dùng</a></span>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header-actions">
+    <div class="search-filter">
+        <form method="get" action="/admin/users" class="search-form">
+            <div class="input-group">
+                <input type="text" name="search" value="{{ search or '' }}" placeholder="Tìm kiếm người dùng..." class="form-control">
+                <select name="status" class="form-select">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="active" {% if status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+                    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Đã khóa</option>
+                </select>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">Danh sách người dùng</div>
+        <div class="card-tools">
+            <span>Tổng số: {{ total_users }} người dùng</span>
+        </div>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if users %}
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Họ tên</th>
+                        <th>Tên đăng nhập</th>
+                        <th>Email</th>
+                        <th>Vai trò</th>
+                        <th>Trạng thái</th>
+                        <th style="width: 140px">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.full_name }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            {% if user.is_admin %}
+                            <span class="badge badge-primary">Quản trị viên</span>
+                            {% else %}
+                            <span class="badge badge-info">Người dùng</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                            <span class="badge badge-success">Đang hoạt động</span>
+                            {% else %}
+                            <span class="badge badge-danger">Đã khóa</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                <a href="/admin/users/{{ user.id }}" class="action-btn view" title="Xem chi tiết">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                
+                                {% if not user.is_admin or current_user.id == user.id %}
+                                    {% if user.is_active %}
+                                    <a href="#" class="action-btn lock-user" title="Khóa tài khoản" data-id="{{ user.id }}" data-name="{{ user.full_name }}">
+                                        <i class="fas fa-lock"></i>
+                                    </a>
+                                    {% else %}
+                                    <a href="#" class="action-btn unlock-user" title="Mở khóa tài khoản" data-id="{{ user.id }}" data-name="{{ user.full_name }}">
+                                        <i class="fas fa-unlock"></i>
+                                    </a>
+                                    {% endif %}
+                                {% endif %}
+                                
+                                {% if not user.is_admin and current_user.id != user.id %}
+                                <a href="#" class="action-btn admin-toggle" title="{{ 'Gỡ quyền quản trị' if user.is_admin else 'Cấp quyền quản trị' }}" data-id="{{ user.id }}" data-admin="{{ user.is_admin }}">
+                                    <i class="fas {{ 'fa-user-minus' if user.is_admin else 'fa-user-shield' }}"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Phân trang -->
+        {% if total_pages > 1 %}
+        <div class="pagination-container">
+            <ul class="pagination">
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for p in range(1, total_pages + 1) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="?page={{ p }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}">
+                        {{ p }}
+                    </a>
+                </li>
+                {% endfor %}
+                
+                {% if page < total_pages %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <h4>Không tìm thấy người dùng nào</h4>
+            <p>Không có người dùng nào phù hợp với tìm kiếm của bạn.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal khóa tài khoản -->
+<div class="modal" id="lock-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Khóa tài khoản</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn sắp khóa tài khoản của <strong id="lock-user-name"></strong>.</p>
+                <div class="form-group">
+                    <label for="lock-reason">Lý do khóa tài khoản</label>
+                    <textarea id="lock-reason" class="form-control" rows="3" placeholder="Nhập lý do khóa tài khoản" required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger" id="confirm-lock">Khóa tài khoản</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Khóa tài khoản
+    const lockButtons = document.querySelectorAll('.lock-user');
+    const lockModal = new bootstrap.Modal(document.getElementById('lock-modal'));
+    const lockUserNameElement = document.getElementById('lock-user-name');
+    const lockReasonInput = document.getElementById('lock-reason');
+    const confirmLockButton = document.getElementById('confirm-lock');
+    
+    let currentUserId = null;
+    
+    lockButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            currentUserId = this.getAttribute('data-id');
+            const userName = this.getAttribute('data-name');
+            lockUserNameElement.textContent = userName;
+            lockReasonInput.value = '';
+            lockModal.show();
+        });
+    });
+    
+    confirmLockButton.addEventListener('click', function() {
+        const reason = lockReasonInput.value.trim();
+        if (!reason) {
+            alert('Vui lòng nhập lý do khóa tài khoản');
+            return;
+        }
+        
+        lockUser(currentUserId, reason);
+        lockModal.hide();
+    });
+    
+    // Mở khóa tài khoản
+    const unlockButtons = document.querySelectorAll('.unlock-user');
+    unlockButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const userId = this.getAttribute('data-id');
+            const userName = this.getAttribute('data-name');
+            
+            if (confirm(`Bạn có chắc chắn muốn mở khóa tài khoản của ${userName}?`)) {
+                unlockUser(userId);
+            }
+        });
+    });
+    
+    // Thay đổi quyền quản trị
+    const adminToggleButtons = document.querySelectorAll('.admin-toggle');
+    adminToggleButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const userId = this.getAttribute('data-id');
+            const isAdmin = this.getAttribute('data-admin') === 'True';
+            
+            const action = isAdmin ? 'gỡ bỏ quyền quản trị viên' : 'cấp quyền quản trị viên';
+            
+            if (confirm(`Bạn có chắc chắn muốn ${action} cho người dùng này?`)) {
+                toggleAdminRole(userId, !isAdmin);
+            }
+        });
+    });
+    
+    // API functions
+    function lockUser(userId, reason) {
+        fetch(`/api/users/admin/users/${userId}/lock?reason=${encodeURIComponent(reason)}`, {
+            method: 'POST',
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể khóa tài khoản');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Đã khóa tài khoản thành công!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function unlockUser(userId) {
+        fetch(`/api/users/admin/users/${userId}/unlock`, {
+            method: 'POST',
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể mở khóa tài khoản');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Đã mở khóa tài khoản thành công!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function toggleAdminRole(userId, makeAdmin) {
+        fetch(`/api/users/admin/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                is_admin: makeAdmin
+            }),
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể thay đổi quyền quản trị');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert(makeAdmin ? 'Đã cấp quyền quản trị viên thành công!' : 'Đã gỡ bỏ quyền quản trị viên thành công!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.admin-header-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.search-filter {
+    flex: 1;
+    max-width: 600px;
+}
+
+.search-form .input-group {
+    display: flex;
+}
+
+.search-form .form-control {
+    border-radius: 4px 0 0 4px;
+}
+
+.search-form .form-select {
+    max-width: 200px;
+    border-radius: 0;
+}
+
+.search-form .btn {
+    border-radius: 0 4px 4px 0;
+}
+
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.pagination {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.page-item {
+    margin: 0 0.25rem;
+}
+
+.page-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    color: var(--text-dark);
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.empty-state {
+    padding: 3rem;
+    text-align: center;
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background-color: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--text-light);
+}
+
+.badge-primary {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--primary-color);
+}
+
+.action-btn.lock-user {
+    background-color: #f97316;
+}
+
+.action-btn.unlock-user {
+    background-color: #10b981;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.modal.show {
+    display: block;
+}
+
+.modal-dialog {
+    max-width: 500px;
+    margin: 1.75rem auto;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.modal-header {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.btn-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    border-top: 1px solid #e5e7eb;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+</style>
+{% endblock %} 
+ 

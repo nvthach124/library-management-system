@@ -1,0 +1,808 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Báo cáo thống kê - Admin{% endblock %}
+
+{% set active_page = 'reports' %}
+
+{% block page_title %}Báo cáo thống kê{% endblock %}
+
+{% block breadcrumb %}
+<span> / <a href="#">Báo cáo thống kê</a></span>
+{% endblock %}
+
+{% block content %}
+<!-- Overview Cards -->
+<div class="row mb-4">
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="stat-card primary">
+            <div class="stat-icon">
+                <i class="fas fa-book"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="total-books">-</h3>
+                <p class="stat-label">Tổng số sách</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="stat-card success">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="total-users">-</h3>
+                <p class="stat-label">Người dùng</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="stat-card info">
+            <div class="stat-icon">
+                <i class="fas fa-clipboard-list"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="total-orders">-</h3>
+                <p class="stat-label">Đơn mượn</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="stat-card warning">
+            <div class="stat-icon">
+                <i class="fas fa-book-reader"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="books-borrowed">-</h3>
+                <p class="stat-label">Đang mượn</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="stat-card danger">
+            <div class="stat-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="overdue-books">-</h3>
+                <p class="stat-label">Quá hạn</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+        <div class="stat-card secondary">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number" id="available-books">-</h3>
+                <p class="stat-label">Có sẵn</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <!-- Monthly Borrows Chart -->
+    <div class="col-lg-8 col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-chart-line"></i>
+                    Thống kê mượn sách theo tháng
+                </div>
+                <div class="card-tools">
+                    <button class="btn btn-sm btn-primary" id="refresh-monthly-chart">
+                        <i class="fas fa-sync"></i> Làm mới
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="monthly-borrows-chart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Category Statistics -->
+    <div class="col-lg-4 col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Thống kê theo danh mục
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="category-chart" width="300" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Popular Books and User Activity -->
+<div class="row mb-4">
+    <!-- Popular Books -->
+    <div class="col-lg-6 col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-fire"></i>
+                    Sách được mượn nhiều nhất
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="popular-books-list" class="popular-books-list">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i> Đang tải...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- User Activity -->
+    <div class="col-lg-6 col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-user-chart"></i>
+                    Hoạt động người dùng
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="user-activity-stats">
+                    <div class="activity-stat">
+                        <div class="activity-icon primary">
+                            <i class="fas fa-user-clock"></i>
+                        </div>
+                        <div class="activity-info">
+                            <h4 id="active-users">-</h4>
+                            <p>Người dùng hoạt động (30 ngày)</p>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-stat">
+                        <div class="activity-icon success">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <div class="activity-info">
+                            <h4 id="new-users">-</h4>
+                            <p>Người dùng mới (30 ngày)</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="top-users mt-4">
+                    <h5><i class="fas fa-trophy"></i> Top người dùng</h5>
+                    <div id="top-users-list" class="top-users-list">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i> Đang tải...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Tools -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="fas fa-download"></i>
+                    Xuất báo cáo
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="export-buttons">
+                    <button class="btn btn-success" id="export-excel">
+                        <i class="fas fa-file-excel"></i> Xuất Excel
+                    </button>
+                    <button class="btn btn-danger" id="export-pdf">
+                        <i class="fas fa-file-pdf"></i> Xuất PDF
+                    </button>
+                    <button class="btn btn-primary" id="print-report">
+                        <i class="fas fa-print"></i> In báo cáo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let monthlyChart = null;
+    let categoryChart = null;
+    
+    // Load all statistics
+    loadOverviewStats();
+    loadMonthlyBorrowsChart();
+    loadCategoryChart();
+    loadPopularBooks();
+    loadUserActivity();
+    
+    // Refresh buttons
+    document.getElementById('refresh-monthly-chart').addEventListener('click', loadMonthlyBorrowsChart);
+    
+    // Export buttons
+    document.getElementById('export-excel').addEventListener('click', exportToExcel);
+    document.getElementById('export-pdf').addEventListener('click', exportToPDF);
+    document.getElementById('print-report').addEventListener('click', printReport);
+    
+    // Load overview statistics
+    async function loadOverviewStats() {
+        try {
+            const response = await fetch('/api/statistics/overview', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (response.status === 401) {
+                showAlert('danger', 'Bạn cần đăng nhập với quyền admin để xem thống kê');
+                return;
+            }
+            
+            if (!response.ok) throw new Error('Failed to load overview stats');
+            
+            const data = await response.json();
+            
+            document.getElementById('total-books').textContent = data.total_books.toLocaleString();
+            document.getElementById('total-users').textContent = data.total_users.toLocaleString();
+            document.getElementById('total-orders').textContent = data.total_orders.toLocaleString();
+            document.getElementById('books-borrowed').textContent = data.books_borrowed.toLocaleString();
+            document.getElementById('overdue-books').textContent = data.overdue_books.toLocaleString();
+            document.getElementById('available-books').textContent = data.available_books.toLocaleString();
+            
+        } catch (error) {
+            console.error('Error loading overview stats:', error);
+            showAlert('danger', 'Không thể tải thống kê tổng quan');
+        }
+    }
+    
+    // Load monthly borrows chart
+    async function loadMonthlyBorrowsChart() {
+        try {
+            const response = await fetch('/api/statistics/monthly-borrows', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (response.status === 401) {
+                showAlert('danger', 'Bạn cần đăng nhập với quyền admin để xem thống kê');
+                return;
+            }
+            
+            if (!response.ok) throw new Error('Failed to load monthly stats');
+            
+            const result = await response.json();
+            const data = result.data;
+            
+            const ctx = document.getElementById('monthly-borrows-chart').getContext('2d');
+            
+            if (monthlyChart) {
+                monthlyChart.destroy();
+            }
+            
+            monthlyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(item => item.month),
+                    datasets: [{
+                        label: 'Số đơn mượn',
+                        data: data.map(item => item.count),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error loading monthly chart:', error);
+            showAlert('danger', 'Không thể tải biểu đồ theo tháng');
+        }
+    }
+    
+    // Load category chart
+    async function loadCategoryChart() {
+        try {
+            const response = await fetch('/api/statistics/categories', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (response.status === 401) {
+                showAlert('danger', 'Bạn cần đăng nhập với quyền admin để xem thống kê');
+                return;
+            }
+            
+            if (!response.ok) throw new Error('Failed to load category stats');
+            
+            const result = await response.json();
+            const data = result.data;
+            
+            const ctx = document.getElementById('category-chart').getContext('2d');
+            
+            if (categoryChart) {
+                categoryChart.destroy();
+            }
+            
+            categoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(item => item.name),
+                    datasets: [{
+                        data: data.map(item => item.borrow_count),
+                        backgroundColor: [
+                            '#3b82f6', '#ef4444', '#10b981', '#f59e0b',
+                            '#8b5cf6', '#06b6d4', '#f97316', '#84cc16'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error loading category chart:', error);
+            showAlert('danger', 'Không thể tải biểu đồ danh mục');
+        }
+    }
+    
+    // Load popular books
+    async function loadPopularBooks() {
+        try {
+            const response = await fetch('/api/statistics/popular-books?limit=10', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (response.status === 401) {
+                showAlert('danger', 'Bạn cần đăng nhập với quyền admin để xem thống kê');
+                return;
+            }
+            
+            if (!response.ok) throw new Error('Failed to load popular books');
+            
+            const result = await response.json();
+            const data = result.data;
+            
+            const container = document.getElementById('popular-books-list');
+            
+            if (data.length === 0) {
+                container.innerHTML = '<p class="text-muted">Chưa có dữ liệu</p>';
+                return;
+            }
+            
+            let html = '';
+            data.forEach((book, index) => {
+                html += `
+                    <div class="popular-book-item">
+                        <div class="book-rank">${index + 1}</div>
+                        <div class="book-cover">
+                            <img src="${book.cover_image}" alt="${book.title}" onerror="this.src='/static/images/book_default.svg'">
+                        </div>
+                        <div class="book-info">
+                            <h6 class="book-title">${book.title}</h6>
+                            <p class="book-stats">${book.borrow_count} lượt mượn</p>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            
+        } catch (error) {
+            console.error('Error loading popular books:', error);
+            document.getElementById('popular-books-list').innerHTML = 
+                '<p class="text-danger">Không thể tải dữ liệu</p>';
+        }
+    }
+    
+    // Load user activity
+    async function loadUserActivity() {
+        try {
+            const response = await fetch('/api/statistics/user-activity', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (response.status === 401) {
+                showAlert('danger', 'Bạn cần đăng nhập với quyền admin để xem thống kê');
+                return;
+            }
+            
+            if (!response.ok) throw new Error('Failed to load user activity');
+            
+            const data = await response.json();
+            
+            document.getElementById('active-users').textContent = data.active_users.toLocaleString();
+            document.getElementById('new-users').textContent = data.new_users.toLocaleString();
+            
+            const topUsersContainer = document.getElementById('top-users-list');
+            
+            if (data.top_users.length === 0) {
+                topUsersContainer.innerHTML = '<p class="text-muted">Chưa có dữ liệu</p>';
+                return;
+            }
+            
+            let html = '';
+            data.top_users.forEach((user, index) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                const medal = medals[index] || '🏅';
+                
+                html += `
+                    <div class="top-user-item">
+                        <span class="user-rank">${medal}</span>
+                        <span class="user-name">${user.name}</span>
+                        <span class="user-count">${user.order_count} đơn</span>
+                    </div>
+                `;
+            });
+            
+            topUsersContainer.innerHTML = html;
+            
+        } catch (error) {
+            console.error('Error loading user activity:', error);
+            document.getElementById('top-users-list').innerHTML = 
+                '<p class="text-danger">Không thể tải dữ liệu</p>';
+        }
+    }
+    
+    // Export functions
+    function exportToExcel() {
+        showAlert('info', 'Tính năng xuất Excel đang được phát triển');
+    }
+    
+    function exportToPDF() {
+        showAlert('info', 'Tính năng xuất PDF đang được phát triển');
+    }
+    
+    function printReport() {
+        window.print();
+    }
+    
+    // Show alert function
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+                <div>${message}</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        const container = document.querySelector('.content');
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+/* Statistics Cards */
+.stat-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: none;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+}
+
+.stat-card.primary::before { background: linear-gradient(90deg, #3b82f6, #1d4ed8); }
+.stat-card.success::before { background: linear-gradient(90deg, #10b981, #059669); }
+.stat-card.info::before { background: linear-gradient(90deg, #06b6d4, #0891b2); }
+.stat-card.warning::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.stat-card.danger::before { background: linear-gradient(90deg, #ef4444, #dc2626); }
+.stat-card.secondary::before { background: linear-gradient(90deg, #6b7280, #4b5563); }
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stat-card.primary .stat-icon { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.stat-card.success .stat-icon { background: linear-gradient(135deg, #10b981, #059669); }
+.stat-card.info .stat-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+.stat-card.warning .stat-icon { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.stat-card.danger .stat-icon { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.stat-card.secondary .stat-icon { background: linear-gradient(135deg, #6b7280, #4b5563); }
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-dark);
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-light);
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Popular Books */
+.popular-books-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.popular-book-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    background: #f8fafc;
+    transition: background-color 0.2s;
+}
+
+.popular-book-item:hover {
+    background: #e2e8f0;
+}
+
+.book-rank {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-right: 0.75rem;
+}
+
+.book-cover {
+    width: 40px;
+    height: 60px;
+    margin-right: 0.75rem;
+    overflow: hidden;
+    border-radius: 4px;
+}
+
+.book-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.book-info {
+    flex: 1;
+}
+
+.book-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+    color: var(--text-dark);
+    line-height: 1.3;
+}
+
+.book-stats {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    margin: 0;
+}
+
+/* User Activity */
+.user-activity-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.activity-stat {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.activity-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    color: white;
+}
+
+.activity-icon.primary { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.activity-icon.success { background: linear-gradient(135deg, #10b981, #059669); }
+
+.activity-info h4 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-dark);
+}
+
+.activity-info p {
+    font-size: 0.8125rem;
+    color: var(--text-light);
+    margin: 0;
+}
+
+.top-users-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.top-user-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: #f8fafc;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+
+.user-rank {
+    font-size: 1.25rem;
+    margin-right: 0.75rem;
+}
+
+.user-name {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.user-count {
+    font-size: 0.875rem;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+/* Export buttons */
+.export-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.export-buttons .btn {
+    min-width: 140px;
+}
+
+/* Loading spinner */
+.loading-spinner {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-light);
+}
+
+.loading-spinner i {
+    font-size: 1.5rem;
+    margin-right: 0.5rem;
+}
+
+/* Print styles */
+@media print {
+    .export-buttons,
+    .card-tools,
+    .sidebar {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+    }
+    
+    .card {
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .stat-card {
+        margin-bottom: 1rem;
+    }
+    
+    .export-buttons {
+        flex-direction: column;
+    }
+    
+    .export-buttons .btn {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}

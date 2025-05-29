@@ -1,0 +1,504 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Báo Cáo Quá Hạn - Admin{% endblock %}
+
+{% block styles %}
+<style>
+    .stats-card {
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stats-title {
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-value {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #1e40af;
+    }
+    
+    .stats-desc {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+    }
+    
+    .user-card {
+        display: flex;
+        padding: 1rem;
+        border-radius: 8px;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1rem;
+        border-left: 5px solid #ef4444;
+    }
+    
+    .user-details {
+        flex: 1;
+    }
+    
+    .user-name {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .user-info {
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .user-status {
+        margin-top: 0.5rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        display: inline-block;
+    }
+    
+    .status-active {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-locked {
+        background-color: #fee2e2;
+        color: #b91c1c;
+    }
+    
+    .overdue-info {
+        color: #b91c1c;
+        font-weight: 500;
+    }
+    
+    .actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .action-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+    }
+    
+    .report-filters {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+    
+    .form-select,
+    .form-input {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}Báo Cáo Người Dùng Quá Hạn{% endblock %}
+
+{% block breadcrumb %}
+<span> / </span>
+<span>Báo cáo quá hạn</span>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Stats cards -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="stats-title">Tổng số sách quá hạn</div>
+                <div class="stats-value">{{ total_overdue }}</div>
+                <div class="stats-desc">Tổng số sách đã quá hạn trả</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="stats-title">Người dùng có sách quá hạn</div>
+                <div class="stats-value">{{ users_with_overdue }}</div>
+                <div class="stats-desc">Số người dùng có ít nhất 1 sách quá hạn</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="stats-title">Tỷ lệ trả quá hạn</div>
+                <div class="stats-value" id="overdue-rate">--</div>
+                <div class="stats-desc">Tỷ lệ phần trăm sách trả quá hạn trong tháng</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Lọc báo cáo</h5>
+        </div>
+        <div class="card-body">
+            <form id="report-form">
+                <div class="report-filters">
+                    <div class="filter-group">
+                        <label class="form-label" for="min-days">Số ngày quá hạn tối thiểu</label>
+                        <input type="number" id="min-days" class="form-input" value="1" min="1">
+                    </div>
+                    <div class="filter-group">
+                        <label class="form-label" for="lock-accounts">Tự động khóa tài khoản</label>
+                        <div class="input-group">
+                            <select id="lock-accounts" class="form-select">
+                                <option value="no">Không khóa</option>
+                                <option value="notify">Chỉ gửi thông báo</option>
+                                <option value="lock">Khóa và thông báo</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary" id="apply-action-btn">
+                                <i class="fas fa-check"></i> Áp dụng
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Users with overdue books -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Người dùng có sách quá hạn nhất</h5>
+            <button class="btn btn-sm btn-primary" id="refresh-btn">
+                <i class="fas fa-sync-alt"></i> Làm mới
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="users-list">
+                {% if overdue_users %}
+                    {% for user in overdue_users %}
+                        <div class="user-card">
+                            <div class="user-details">
+                                <h3 class="user-name">{{ user.full_name }}</h3>
+                                <div class="user-info">
+                                    <div><strong>Email:</strong> {{ user.email }}</div>
+                                    <div><strong>SĐT:</strong> {{ user.phone_number or "Không có" }}</div>
+                                    <div><strong>Tài khoản:</strong> {{ user.username }}</div>
+                                    <div class="overdue-info">
+                                        <strong>{{ user.overdue_books_count }} sách quá hạn</strong>
+                                        ({{ user.max_days_overdue }} ngày quá hạn)
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="user-status {% if user.is_active %}status-active{% else %}status-locked{% endif %}">
+                                        {% if user.is_active %}Đang hoạt động{% else %}Đã khóa{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="actions">
+                                <a href="/admin/users/{{ user.id }}" class="btn btn-sm btn-primary action-btn">
+                                    <i class="fas fa-user"></i> Xem chi tiết
+                                </a>
+                                {% if user.is_active %}
+                                <button class="btn btn-sm btn-danger action-btn lock-user-btn" data-id="{{ user.id }}" data-name="{{ user.full_name }}">
+                                    <i class="fas fa-lock"></i> Khóa tài khoản
+                                </button>
+                                {% else %}
+                                <button class="btn btn-sm btn-success action-btn unlock-user-btn" data-id="{{ user.id }}" data-name="{{ user.full_name }}">
+                                    <i class="fas fa-unlock"></i> Mở khóa
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center p-5">
+                        <i class="fas fa-check-circle fa-2x mb-3 text-success"></i>
+                        <p>Không có người dùng nào có sách quá hạn.</p>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- View all button -->
+            <div class="text-center mt-4">
+                <a href="/admin/overdue-users-report" class="btn btn-outline-primary">
+                    <i class="fas fa-list"></i> Xem tất cả người dùng quá hạn
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Elements
+        const reportForm = document.getElementById('report-form');
+        const minDaysInput = document.getElementById('min-days');
+        const lockAccountsSelect = document.getElementById('lock-accounts');
+        const applyActionBtn = document.getElementById('apply-action-btn');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const lockUserBtns = document.querySelectorAll('.lock-user-btn');
+        const unlockUserBtns = document.querySelectorAll('.unlock-user-btn');
+        
+        // Fetch overdue rate
+        fetchOverdueRate();
+        
+        // Event listeners
+        reportForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleAction();
+        });
+        
+        refreshBtn.addEventListener('click', function() {
+            location.reload();
+        });
+        
+        lockUserBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const userId = this.dataset.id;
+                const userName = this.dataset.name;
+                lockUser(userId, userName);
+            });
+        });
+        
+        unlockUserBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const userId = this.dataset.id;
+                const userName = this.dataset.name;
+                unlockUser(userId, userName);
+            });
+        });
+        
+        // Functions
+        function fetchOverdueRate() {
+            // Placeholder - would normally fetch from API
+            // For demonstration, setting a random value
+            const rate = Math.floor(Math.random() * 30) + 5;
+            document.getElementById('overdue-rate').textContent = rate + '%';
+        }
+        
+        function handleAction() {
+            const minDays = parseInt(minDaysInput.value) || 1;
+            const action = lockAccountsSelect.value;
+            
+            if (action === 'no') {
+                // Just view the report
+                window.location.href = `/admin/users/overdue-report?min_days_overdue=${minDays}`;
+                return;
+            }
+            
+            // Show confirmation dialog
+            let message = '';
+            if (action === 'notify') {
+                message = `Bạn sắp gửi thông báo đến tất cả người dùng có sách quá hạn từ ${minDays} ngày. Tiếp tục?`;
+            } else if (action === 'lock') {
+                message = `CẢNH BÁO: Bạn sắp khóa tài khoản của tất cả người dùng có sách quá hạn từ ${minDays} ngày. Hành động này không thể hoàn tác. Tiếp tục?`;
+            }
+            
+            Swal.fire({
+                title: 'Xác nhận hành động',
+                text: message,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Đồng ý',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show loading
+                    applyActionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+                    applyActionBtn.disabled = true;
+                    
+                    // Prepare data
+                    const data = {
+                        days_overdue: minDays,
+                        notify_users: true
+                    };
+                    
+                    // Call appropriate API
+                    let apiUrl = '';
+                    if (action === 'notify') {
+                        apiUrl = '/api/users/admin/notify-overdue-users';
+                    } else if (action === 'lock') {
+                        apiUrl = '/api/users/admin/lock-overdue-accounts';
+                    }
+                    
+                    // Make API call
+                    fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(data => {
+                                throw new Error(data.detail || 'Có lỗi xảy ra');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        Swal.fire(
+                            'Thành công!',
+                            data.message,
+                            'success'
+                        ).then(() => {
+                            location.reload();
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.fire(
+                            'Lỗi!',
+                            error.message,
+                            'error'
+                        );
+                    })
+                    .finally(() => {
+                        // Reset button
+                        applyActionBtn.innerHTML = '<i class="fas fa-check"></i> Áp dụng';
+                        applyActionBtn.disabled = false;
+                    });
+                }
+            });
+        }
+        
+        function lockUser(userId, userName) {
+            Swal.fire({
+                title: 'Xác nhận khóa tài khoản',
+                text: `Bạn sắp khóa tài khoản của ${userName}. Nhập lý do khóa:`,
+                input: 'text',
+                inputPlaceholder: 'Quá hạn trả sách nhiều lần',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Khóa tài khoản',
+                cancelButtonText: 'Hủy',
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'Vui lòng nhập lý do khóa tài khoản';
+                    }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Call API to lock user
+                    fetch(`/api/users/admin/${userId}/toggle-active`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            reason: result.value
+                        })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(data => {
+                                throw new Error(data.detail || 'Có lỗi xảy ra');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        Swal.fire(
+                            'Thành công!',
+                            data.message,
+                            'success'
+                        ).then(() => {
+                            location.reload();
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.fire(
+                            'Lỗi!',
+                            error.message,
+                            'error'
+                        );
+                    });
+                }
+            });
+        }
+        
+        function unlockUser(userId, userName) {
+            Swal.fire({
+                title: 'Xác nhận mở khóa tài khoản',
+                text: `Bạn sắp mở khóa tài khoản của ${userName}. Tiếp tục?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Mở khóa',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Call API to unlock user
+                    fetch(`/api/users/admin/${userId}/toggle-active`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            reason: "Mở khóa tài khoản"
+                        })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(data => {
+                                throw new Error(data.detail || 'Có lỗi xảy ra');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        Swal.fire(
+                            'Thành công!',
+                            data.message,
+                            'success'
+                        ).then(() => {
+                            location.reload();
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.fire(
+                            'Lỗi!',
+                            error.message,
+                            'error'
+                        );
+                    });
+                }
+            });
+        }
+    });
+</script>
+{% endblock %} 

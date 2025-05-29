@@ -1,0 +1,459 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ "Thêm sách mới" if action == "create" else "Chỉnh sửa sách" }} - Admin{% endblock %}
+
+{% set active_page = 'books' %}
+
+{% block page_title %}{{ "Thêm sách mới" if action == "create" else "Chỉnh sửa sách" }}{% endblock %}
+
+{% block breadcrumb %}
+<span> / <a href="/admin/books">Quản lý sách</a></span>
+<span> / <a href="#">{{ "Thêm mới" if action == "create" else "Chỉnh sửa" }}</a></span>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">{{ "Thêm sách mới" if action == "create" else "Chỉnh sửa: " ~ book.title }}</div>
+    </div>
+    
+    <div class="card-body">
+        <form id="book-form" class="book-form" method="post" enctype="multipart/form-data" data-validate>
+            <input type="hidden" name="id" value="{{ book.id if book else '' }}">
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="form-group mb-3">
+                        <label for="title">Tiêu đề sách <span class="text-danger">*</span></label>
+                        <input type="text" id="title" name="title" class="form-control" value="{{ book.title if book else '' }}" required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="isbn">ISBN <span class="text-danger">*</span></label>
+                                <input type="text" id="isbn" name="isbn" class="form-control" value="{{ book.isbn if book else '' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="publication_year">Năm xuất bản</label>
+                                <input type="number" id="publication_year" name="publication_year" class="form-control" min="1800" max="{{ current_year }}" value="{{ book.publication_year if book else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="pages">Số trang</label>
+                                <input type="number" id="pages" name="pages" class="form-control" min="1" value="{{ book.pages if book else '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="language">Ngôn ngữ</label>
+                                <input type="text" id="language" name="language" class="form-control" value="{{ book.language if book else 'Tiếng Việt' }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group mb-3">
+                        <label for="description">Mô tả sách</label>
+                        <textarea id="description" name="description" class="form-control" rows="5">{{ book.description if book else '' }}</textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="author_id">Tác giả <span class="text-danger">*</span></label>
+                                <select id="author_id" name="author_id" class="form-control" required>
+                                    <option value="">-- Chọn tác giả --</option>
+                                    {% for author in authors %}
+                                    <option value="{{ author.id }}" {% if book and book.author_id == author.id %}selected{% endif %}>{{ author.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="publisher_id">Nhà xuất bản <span class="text-danger">*</span></label>
+                                <select id="publisher_id" name="publisher_id" class="form-control" required>
+                                    <option value="">-- Chọn nhà xuất bản --</option>
+                                    {% for publisher in publishers %}
+                                    <option value="{{ publisher.id }}" {% if book and book.publisher_id == publisher.id %}selected{% endif %}>{{ publisher.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group mb-3">
+                        <label>Thể loại <span class="text-danger">*</span></label>
+                        <div class="categories-container">
+                            {% for category in categories %}
+                            <div class="form-check">
+                                <input type="checkbox" id="category_{{ category.id }}" name="category_ids" value="{{ category.id }}" class="form-check-input" 
+                                       {% if book and category in book.categories %}checked{% endif %}>
+                                <label for="category_{{ category.id }}" class="form-check-label">{{ category.name }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="form-group mb-3">
+                        <label for="cover_image">Ảnh bìa sách</label>
+                        <div class="cover-preview-container mb-2">
+                            <img id="cover-preview" src="{{ book.cover_image if book and book.cover_image else '/static/images/book_default.svg' }}" alt="Book cover preview">
+                        </div>
+                        <input type="file" id="cover_image" name="cover_image" class="form-control" accept="image/*">
+                        <input type="hidden" name="existing_cover" value="{{ book.cover_image if book and book.cover_image else '' }}">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="total_copies">Tổng số <span class="text-danger">*</span></label>
+                                <input type="number" id="total_copies" name="total_copies" class="form-control" min="0" value="{{ book.total_copies if book else '1' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="available_copies">Có sẵn <span class="text-danger">*</span></label>
+                                <input type="number" id="available_copies" name="available_copies" class="form-control" min="0" value="{{ book.available_copies if book else '1' }}" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> {{ "Thêm sách" if action == "create" else "Lưu thay đổi" }}
+                </button>
+                <a href="/admin/books" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Hủy
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const bookForm = document.getElementById('book-form');
+    const submitButton = bookForm.querySelector('button[type="submit"]');
+    
+    // Check auth token when page loads
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+        return;
+    }
+
+    bookForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Disable submit button
+        submitButton.disabled = true;
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+        
+        try {
+            // Validate form
+            if (!validateForm()) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+                return;
+            }
+            
+            // Collect form data
+            const formData = new FormData(bookForm);
+            
+            // Convert to JSON data
+            const bookData = {
+                id: formData.get('id') || undefined,
+                title: formData.get('title').trim(),
+                isbn: formData.get('isbn').trim(),
+                publication_year: formData.get('publication_year') ? parseInt(formData.get('publication_year')) : null,
+                pages: formData.get('pages') ? parseInt(formData.get('pages')) : null,
+                language: formData.get('language'),
+                description: formData.get('description'),
+                cover_image: formData.get('existing_cover') || '',
+                total_copies: parseInt(formData.get('total_copies')),
+                available_copies: parseInt(formData.get('available_copies')),
+                author_id: parseInt(formData.get('author_id')),
+                publisher_id: parseInt(formData.get('publisher_id')),
+                category_ids: Array.from(formData.getAll('category_ids')).map(id => parseInt(id))
+            };
+            
+            // Handle file upload first if there's a new cover image
+            const coverImageFile = formData.get('cover_image');
+            if (coverImageFile && coverImageFile.size > 0) {
+                const imageUrl = await uploadCoverImage(coverImageFile);
+                bookData.cover_image = imageUrl;
+            }
+            
+            await saveBook(bookData);
+            
+            // Show success message and redirect
+            showAlert('success', bookData.id ? 'Đã cập nhật sách thành công!' : 'Đã thêm sách mới thành công!');
+            setTimeout(() => {
+                window.location.href = '/admin/books';
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Save error:', error);
+            showAlert('danger', error.message);
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+    });
+    
+    // Cover image preview
+    const coverImageInput = document.getElementById('cover_image');
+    const coverPreview = document.getElementById('cover-preview');
+    
+    coverImageInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                coverPreview.src = e.target.result;
+            }
+            reader.readAsDataURL(this.files[0]);
+        }
+    });
+    
+    // Validate copies
+    const totalCopies = document.getElementById('total_copies');
+    const availableCopies = document.getElementById('available_copies');
+    
+    totalCopies.addEventListener('change', function() {
+        if (parseInt(availableCopies.value) > parseInt(this.value)) {
+            availableCopies.value = this.value;
+        }
+        availableCopies.max = this.value;
+    });
+    
+    function validateForm() {
+        // Reset previous error states
+        clearErrors();
+        let isValid = true;
+        
+        // Validate required fields
+        const requiredFields = ['title', 'isbn', 'author_id', 'publisher_id', 'total_copies', 'available_copies'];
+        requiredFields.forEach(field => {
+            const input = document.getElementById(field);
+            if (!input.value.trim()) {
+                showFieldError(input, 'Trường này là bắt buộc');
+                isValid = false;
+            }
+        });
+        
+        
+        // Validate publication year
+        const publicationYear = document.getElementById('publication_year').value;
+        if (publicationYear) {
+            const currentYear = new Date().getFullYear();
+            if (parseInt(publicationYear) > currentYear) {
+                showFieldError(document.getElementById('publication_year'), 
+                    `Năm xuất bản không thể lớn hơn năm hiện tại (${currentYear})`);
+                isValid = false;
+            }
+        }
+        
+        // Check categories
+        const categoryCheckboxes = document.querySelectorAll('input[name="category_ids"]:checked');
+        if (categoryCheckboxes.length === 0) {
+            showAlert('danger', 'Vui lòng chọn ít nhất một thể loại cho sách');
+            isValid = false;
+        }
+        
+        // Validate copies
+        const totalCopies = parseInt(document.getElementById('total_copies').value);
+        const availableCopies = parseInt(document.getElementById('available_copies').value);
+        if (totalCopies < availableCopies) {
+            showFieldError(document.getElementById('available_copies'), 
+                'Số lượng sách có sẵn không thể lớn hơn tổng số sách');
+            isValid = false;
+        }
+        
+        return isValid;
+    }
+    
+    
+    function showFieldError(input, message) {
+        input.classList.add('is-invalid');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'invalid-feedback';
+        errorDiv.textContent = message;
+        input.parentNode.appendChild(errorDiv);
+    }
+    
+    function clearErrors() {
+        // Clear field errors
+        document.querySelectorAll('.is-invalid').forEach(input => {
+            input.classList.remove('is-invalid');
+        });
+        document.querySelectorAll('.invalid-feedback').forEach(div => {
+            div.remove();
+        });
+        // Clear alerts
+        document.querySelectorAll('.alert').forEach(alert => {
+            alert.remove();
+        });
+    }
+    
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+                <div>${message}</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        const container = document.querySelector('.card-body');
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        if (type === 'success') {
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 3000);
+        }
+    }
+    
+    // Upload cover image function
+    async function uploadCoverImage(file) {
+        const uploadData = new FormData();
+        uploadData.append('file', file);
+        
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            throw new Error('Vui lòng đăng nhập lại');
+        }
+        
+        const response = await fetch('/api/books/upload/book-cover', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: uploadData
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+                throw new Error('Phiên đăng nhập hết hạn');
+            }
+            throw new Error('Không thể tải ảnh lên');
+        }
+
+        const data = await response.json();
+        return data.url;
+    }
+    
+    // Save book function
+    async function saveBook(bookData) {
+        const isUpdate = !!bookData.id;
+        const url = isUpdate ? `/api/books/${bookData.id}` : '/api/books';
+        const method = isUpdate ? 'PUT' : 'POST';
+        
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+            throw new Error('Vui lòng đăng nhập lại');
+        }
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(bookData)
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+                throw new Error('Phiên đăng nhập hết hạn');
+            }
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Không thể lưu thông tin sách');
+        }
+
+        return response.json();
+    }
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.book-form {
+    max-width: 1200px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.text-danger {
+    color: #ef4444;
+}
+
+.cover-preview-container {
+    width: 100%;
+    height: 200px;
+    background-color: #f3f4f6;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#cover-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.categories-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    padding: 1rem;
+    background-color: #f9fafb;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+}
+
+.form-check-input {
+    margin-right: 0.5rem;
+}
+
+.form-actions {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 1rem;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,350 @@
+/* Profile Page Styles */
+:root {
+    --primary-color: #2563eb;
+    --secondary-color: #64748b;
+    --success-color: #059669;
+    --warning-color: #d97706;
+    --danger-color: #dc2626;
+    --text-dark: #1e293b;
+    --text-light: #64748b;
+    --border-color: #e2e8f0;
+    --bg-light: #f8fafc;
+}
+
+/* Profile Card Styles */
+.profile-card {
+    background-color: white;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px -1px rgba(177, 177, 177, 0.1);
+    transition: all 0.3s ease;
+}
+
+.profile-card .card-body {
+    background-color: white;
+    border-radius: 12px;
+}
+
+.profile-card:hover {
+    box-shadow: 0 8px 15px -3px rgba(173, 173, 173, 0.1);
+}
+
+.profile-avatar {
+    position: relative;
+    display: inline-block;
+}
+
+.profile-info .profile-label {
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+
+.profile-info .profile-value {
+    font-weight: 500;
+    color: var(--text-dark);
+    font-size: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f5f9;
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.profile-info .profile-value:last-child {
+    border-bottom: none;
+}
+
+/* Tab Navigation Styles */
+.profile-tabs {
+    border: none;
+    background: transparent;
+    margin-bottom: 0;
+}
+
+.profile-tabs .nav-link {
+    border: none;
+    background: transparent;
+    color: var(--text-light);
+    font-weight: 500;
+    padding: 1rem 1.5rem;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.profile-tabs .nav-link:hover {
+    background: var(--bg-light);
+    color: var(--primary-color);
+}
+
+.profile-tabs .nav-link.active {
+    background: white;
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
+    border-bottom: 1px solid white;
+    z-index: 1;
+}
+
+.profile-tabs .nav-link i {
+    margin-right: 0.5rem;
+}
+
+/* Tab Content Styles */
+.tab-card {
+    background-color: white;
+    border-radius: 0 12px 12px 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px -1px rgba(167, 164, 164, 0.1);
+    margin-top: -1px;
+}
+
+.tab-card .card-body {
+    background-color: white;
+    padding: 2rem;
+}
+
+/* Table Styles */
+.table-hover > tbody > tr:hover > td {
+    background-color: #f8fafc;
+}
+
+.table th {
+    font-weight: 600;
+    color: var(--text-dark);
+    border-bottom: 2px solid var(--border-color);
+    padding: 1rem 0.75rem;
+}
+
+.table td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #202020;
+}
+
+/* Badge Styles */
+.badge {
+    font-weight: 500;
+    padding: 0.5em 0.75em;
+    border-radius: 6px;
+}
+
+/* Modal Styles */
+.modal-content {
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.5rem;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    border-top: 1px solid var(--border-color);
+    padding: 1rem 1.5rem;
+}
+
+/* Form Styles */
+.form-control {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 0.5rem;
+}
+
+/* Button Styles */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: white;
+}
+
+.btn-warning:hover {
+    background-color: #b45309;
+    border-color: #b45309;
+    color: white;
+}
+
+/* Input Group Styles */
+.input-group .btn {
+    border-radius: 0 8px 8px 0;
+}
+
+.input-group .form-control {
+    border-radius: 8px 0 0 8px;
+}
+
+/* List Styles */
+.list-unstyled li {
+    color: var(--text-dark);
+}
+
+.list-unstyled a {
+    color: var(--primary-color);
+    transition: color 0.3s ease;
+}
+
+.list-unstyled a:hover {
+    color: #1d4ed8;
+}
+
+/* Empty State Styles */
+.text-center.text-muted {
+    color: var(--text-light) !important;
+}
+
+.text-center.text-muted i {
+    opacity: 0.5;
+}
+
+/* Loading Animation */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn.loading::after {
+    content: "";
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    margin-left: 0.5rem;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .tab-card .card-body {
+        padding: 1rem;
+    }
+    
+    .profile-tabs .nav-link {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+    
+    .modal-header,
+    .modal-footer {
+        padding: 1rem;
+    }
+    
+    .profile-info .profile-value {
+        font-size: 0.9rem;
+        padding: 0.4rem 0;
+    }
+    
+    .profile-info .profile-label {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .profile-tabs .nav-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
+    }
+    
+    .profile-tabs .nav-link i {
+        display: none;
+    }
+    
+    .btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.875rem;
+    }
+    
+    .table td,
+    .table th {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* Dark mode support (if needed in future) */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --text-dark: #030303;
+        --text-light: #94a3b8;
+        --border-color: #334155;
+        --bg-light: #1e293b;
+    }
+    
+    .profile-card,
+    .tab-card,
+    .modal-content {
+        background-color: #dddddd;
+        border-color: var(--border-color);
+    }
+    
+    .form-control {
+        background-color: #ffffff;
+        border-color: var(--border-color);
+        color: var(--text-dark);
+    }
+    
+    .table-hover > tbody > tr:hover > td {
+        background-color: #b9b9b9;
+    }
+}

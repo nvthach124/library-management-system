@@ -1,0 +1,721 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Chi tiết đơn mượn - Admin{% endblock %}
+
+{% set active_page = 'orders' %}
+
+{% block page_title %}Chi tiết đơn mượn #{{ order.id }}{% endblock %}
+
+{% block breadcrumb %}
+<span> / <a href="/admin/orders">Quản lý đơn mượn</a></span>
+<span> / <a href="#">Chi tiết đơn #{{ order.id }}</a></span>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <div class="card-title">Thông tin đơn mượn</div>
+                
+                <div class="card-tools">
+                    {% if order.status == 'pending' %}
+                    <span class="badge badge-warning">Chờ duyệt</span>
+                    {% elif order.status == 'active' %}
+                    <span class="badge badge-success">Đang mượn</span>
+                    {% elif order.status == 'overdue' %}
+                    <span class="badge badge-danger">Quá hạn</span>
+                    {% elif order.status == 'completed' %}
+                    <span class="badge badge-info">Đã trả</span>
+                    {% elif order.status == 'rejected' %}
+                    <span class="badge badge-secondary">Từ chối</span>
+                    {% elif order.status == 'cancelled' %}
+                    <span class="badge badge-secondary">Đã hủy</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <div class="order-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Người mượn</div>
+                        <div class="detail-value">
+                            <a href="/admin/users/{{ order.user.id }}" class="user-link">
+                                {{ order.user.full_name }}
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label">Ngày tạo đơn</div>
+                        <div class="detail-value">{{ order.order_date.strftime('%d/%m/%Y %H:%M') }}</div>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label">Hạn trả</div>
+                        <div class="detail-value">
+                            {{ order.due_date.strftime('%d/%m/%Y') }}
+                            {% set days_remaining = (order.due_date - now).days %}
+                            {% if days_remaining < 0 and order.status in ['active', 'overdue'] %}
+                            <span class="days-overdue">(quá {{ days_remaining|abs }} ngày)</span>
+                            {% elif days_remaining >= 0 and days_remaining <= 3 and order.status == 'active' %}
+                            <span class="days-warning">(còn {{ days_remaining }} ngày)</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label">Số lượng sách</div>
+                        <div class="detail-value">{{ order.books|length }} cuốn</div>
+                    </div>
+                    
+                    {% if order.notes %}
+                    <div class="detail-item">
+                        <div class="detail-label">Ghi chú</div>
+                        <div class="detail-value order-notes">{{ order.notes }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="order-actions">
+                    {% if order.status == 'pending' %}
+                    <button class="btn btn-success approve-order" data-id="{{ order.id }}">
+                        <i class="fas fa-check"></i> Duyệt đơn
+                    </button>
+                    <button class="btn btn-danger reject-order" data-id="{{ order.id }}">
+                        <i class="fas fa-times"></i> Từ chối
+                    </button>
+                    {% elif order.status in ['active', 'overdue'] %}
+                    <button class="btn btn-primary complete-order" data-id="{{ order.id }}">
+                        <i class="fas fa-check-circle"></i> Đánh dấu hoàn thành
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Người mượn</div>
+            </div>
+            
+            <div class="card-body">
+                <div class="borrower-info">
+                    <div class="borrower-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    
+                    <h4 class="borrower-name">{{ order.user.full_name }}</h4>
+                    <p class="borrower-email">{{ order.user.email }}</p>
+                    
+                    {% if order.user.phone_number %}
+                    <p class="borrower-phone">{{ order.user.phone_number }}</p>
+                    {% endif %}
+                    
+                    <a href="/admin/users/{{ order.user.id }}" class="btn btn-sm btn-outline-primary view-user-btn">
+                        <i class="fas fa-user"></i> Xem thông tin
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Danh sách sách mượn</div>
+            </div>
+            
+            <div class="card-body">
+                {% if order.books %}
+                <div class="books-list">
+                    {% for book in order.books %}
+                    {% set borrow = borrows|selectattr('book_id', 'eq', book.id)|list|first %}
+                    <div class="book-card">
+                        <div class="book-cover">
+                            <img src="{{ book.cover_image or '/static/images/book_default.svg' }}" alt="{{ book.title }}">
+                        </div>
+                        
+                        <div class="book-info">
+                            <h4 class="book-title">{{ book.title }}</h4>
+                            <p class="book-author">{{ book.author.name }}</p>
+                            
+                            <div class="book-meta">
+                                <span class="book-isbn">ISBN: {{ book.isbn }}</span>
+                                <span class="book-category">
+                                    {% for category in book.categories %}
+                                    <span class="badge badge-info">{{ category.name }}</span>
+                                    {% endfor %}
+                                </span>
+                            </div>
+                            
+                            <div class="borrow-status">
+                                {% if borrow and borrow.is_returned %}
+                                <span class="status-indicator returned">
+                                    <i class="fas fa-check-circle"></i> Đã trả ({{ borrow.return_date.strftime('%d/%m/%Y') }})
+                                </span>
+                                {% elif order.status in ['active', 'overdue'] %}
+                                <span class="status-indicator {{ 'overdue' if order.status == 'overdue' else 'active' }}">
+                                    <i class="fas fa-book-reader"></i> {{ 'Quá hạn' if order.status == 'overdue' else 'Đang mượn' }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="book-actions">
+                            <a href="/books/{{ book.id }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                <i class="fas fa-eye"></i> Xem sách
+                            </a>
+                            
+                            {% if order.status in ['active', 'overdue'] and borrow and not borrow.is_returned %}
+                            <button class="btn btn-sm btn-success mark-returned" data-id="{{ borrow.id }}" data-title="{{ book.title }}">
+                                <i class="fas fa-undo"></i> Đánh dấu đã trả
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <h4>Không có sách nào trong đơn mượn</h4>
+                    <p>Đơn mượn này không có sách nào.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal từ chối đơn -->
+<div class="modal" id="reject-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Từ chối đơn mượn</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn sắp từ chối đơn mượn <strong>#{{ order.id }}</strong>.</p>
+                <div class="form-group">
+                    <label for="reject-reason">Lý do từ chối</label>
+                    <textarea id="reject-reason" class="form-control" rows="3" placeholder="Nhập lý do từ chối đơn mượn" required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger" id="confirm-reject">Từ chối đơn</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Duyệt đơn
+    const approveButton = document.querySelector('.approve-order');
+    if (approveButton) {
+        approveButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const orderId = this.getAttribute('data-id');
+            
+            if (confirm('Bạn có chắc chắn muốn duyệt đơn mượn này?')) {
+                approveOrder(orderId);
+            }
+        });
+    }
+    
+    // Từ chối đơn
+    const rejectButton = document.querySelector('.reject-order');
+    if (rejectButton) {
+        const rejectModal = new bootstrap.Modal(document.getElementById('reject-modal'));
+        const rejectReasonInput = document.getElementById('reject-reason');
+        const confirmRejectButton = document.getElementById('confirm-reject');
+        
+        rejectButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            rejectReasonInput.value = '';
+            rejectModal.show();
+        });
+        
+        confirmRejectButton.addEventListener('click', function() {
+            const reason = rejectReasonInput.value.trim();
+            if (!reason) {
+                alert('Vui lòng nhập lý do từ chối đơn mượn');
+                return;
+            }
+            
+            rejectOrder(rejectButton.getAttribute('data-id'), reason);
+            rejectModal.hide();
+        });
+    }
+    
+    // Hoàn thành đơn
+    const completeButton = document.querySelector('.complete-order');
+    if (completeButton) {
+        completeButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const orderId = this.getAttribute('data-id');
+            
+            if (confirm('Bạn có chắc chắn muốn đánh dấu đơn mượn này là đã hoàn thành? Điều này đồng nghĩa với việc tất cả sách đã được trả.')) {
+                completeOrder(orderId);
+            }
+        });
+    }
+    
+    // Đánh dấu sách đã trả
+    const returnButtons = document.querySelectorAll('.mark-returned');
+    returnButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const borrowId = this.getAttribute('data-id');
+            const bookTitle = this.getAttribute('data-title');
+            
+            if (confirm(`Bạn có chắc chắn muốn đánh dấu sách "${bookTitle}" là đã trả?`)) {
+                markBookAsReturned(borrowId);
+            }
+        });
+    });
+    
+    // API functions
+    function approveOrder(orderId) {
+        fetch(`/api/borrow-orders/admin/${orderId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAccessToken()}`
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.detail || 'Không thể duyệt đơn mượn');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Đã duyệt đơn mượn thành công!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function rejectOrder(orderId, reason) {
+        fetch(`/api/borrow-orders/admin/${orderId}/reject?reason=${encodeURIComponent(reason)}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAccessToken()}`
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể từ chối đơn mượn');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Đã từ chối đơn mượn thành công!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function completeOrder(orderId) {
+        fetch(`/api/borrow-orders/admin/${orderId}/complete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAccessToken()}`
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json().then(data => {
+                    alert('Đã đánh dấu đơn mượn là đã hoàn thành!');
+                    window.location.reload();
+                });
+            } else if (response.status === 400) {
+                // Có thể còn sách chưa trả
+                return response.json().then(error => {
+                    if (confirm(`${error.detail}\n\nBạn có muốn đánh dấu tất cả sách là đã trả và hoàn thành đơn không?`)) {
+                        // Gọi API đánh dấu tất cả sách là đã trả và hoàn thành đơn
+                        completeOrderWithReturns(orderId);
+                    }
+                });
+            } else {
+                throw new Error('Không thể hoàn thành đơn mượn');
+            }
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function completeOrderWithReturns(orderId) {
+        fetch(`/api/borrow-orders/admin/${orderId}/complete-with-returns`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAccessToken()}`
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể hoàn thành đơn mượn');
+            }
+            return response.json();
+        })
+        .then(data => {
+            let message = 'Đã hoàn thành đơn mượn!';
+            if (data.returned_books) {
+                message = `Đã hoàn thành đơn mượn và đánh dấu ${data.returned_books} sách là đã trả!`;
+            }
+            alert(message);
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    function markBookAsReturned(borrowId) {
+        fetch(`/api/books/return/${borrowId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAccessToken()}`
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Không thể đánh dấu sách đã trả');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Đã đánh dấu sách là đã trả!');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Lỗi: ' + error.message);
+        });
+    }
+    
+    // Add utility function to get access token
+    function getAccessToken() {
+        const getCookie = (name) => {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        };
+        return getCookie('access_token');
+    }
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.detail-item {
+    margin-bottom: 1rem;
+}
+
+.detail-label {
+    font-size: 0.875rem;
+    color: var(--text-light);
+    margin-bottom: 0.25rem;
+}
+
+.detail-value {
+    font-weight: 500;
+}
+
+.user-link {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.user-link:hover {
+    text-decoration: underline;
+}
+
+.days-overdue {
+    color: #ef4444;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.days-warning {
+    color: #f59e0b;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.order-notes {
+    white-space: pre-line;
+    font-weight: normal;
+    padding: 0.75rem;
+    background-color: #f9fafb;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+.order-actions {
+    margin-top: 1.5rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.borrower-info {
+    text-align: center;
+}
+
+.borrower-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    margin: 0 auto 1rem;
+}
+
+.borrower-name {
+    margin-bottom: 0.25rem;
+    font-size: 1.25rem;
+}
+
+.borrower-email, .borrower-phone {
+    margin-bottom: 0.5rem;
+    color: var(--text-light);
+    font-size: 0.875rem;
+}
+
+.view-user-btn {
+    margin-top: 0.5rem;
+}
+
+.books-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.book-card {
+    display: flex;
+    background-color: #f9fafb;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.book-cover {
+    width: 100px;
+    height: 140px;
+    background-color: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.book-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.book-info {
+    flex: 1;
+    padding: 1rem;
+}
+
+.book-title {
+    margin: 0 0 0.25rem;
+    font-size: 1.1rem;
+}
+
+.book-author {
+    margin: 0 0 0.75rem;
+    color: var(--text-light);
+}
+
+.book-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.875rem;
+}
+
+.book-isbn {
+    color: var(--text-light);
+}
+
+.book-category .badge {
+    margin-right: 0.25rem;
+}
+
+.borrow-status {
+    margin-top: 0.5rem;
+}
+
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-indicator.returned {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #047857;
+}
+
+.status-indicator.active {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #1d4ed8;
+}
+
+.status-indicator.overdue {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #b91c1c;
+}
+
+.book-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    justify-content: center;
+    min-width: 150px;
+}
+
+.empty-state {
+    padding: 3rem;
+    text-align: center;
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background-color: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--text-light);
+}
+
+.empty-state h4 {
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-light);
+    margin-bottom: 0;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.modal.show {
+    display: block;
+}
+
+.modal-dialog {
+    max-width: 500px;
+    margin: 1.75rem auto;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.modal-header {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.btn-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    border-top: 1px solid #e5e7eb;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+@media (max-width: 767.98px) {
+    .book-card {
+        flex-direction: column;
+    }
+    
+    .book-cover {
+        width: 100%;
+        height: 200px;
+    }
+    
+    .book-actions {
+        flex-direction: row;
+        justify-content: flex-start;
+    }
+}
+</style>
+{% endblock %} 
+ 

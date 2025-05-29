@@ -1,0 +1,357 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Quản lý danh mục - Admin{% endblock %}
+
+{% set active_page = 'categories' %}
+
+{% block page_title %}Quản lý danh mục{% endblock %}
+
+{% block breadcrumb %}
+<span> / <a href="/admin/categories">Quản lý danh mục</a></span>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header-actions">
+    <div class="search-filter">
+        <form method="get" action="/admin/categories" class="search-form">
+            <div class="input-group">
+                <input type="text" name="search" value="{{ search or '' }}" placeholder="Tìm theo tên danh mục..." class="form-control">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#categoryModal">
+        <i class="fas fa-plus"></i> Thêm danh mục mới
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">Danh sách danh mục</div>
+        <div class="card-tools">
+            <span>Tổng số: {{ total_categories }} danh mục</span>
+        </div>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if categories %}
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px">ID</th>
+                        <th>Tên danh mục</th>
+                        <th>Mô tả</th>
+                        <th>Số sách</th>
+                        <th style="width: 100px">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category in categories %}
+                    <tr>
+                        <td>{{ category.id }}</td>
+                        <td>{{ category.name }}</td>
+                        <td>{{ category.description or '' }}</td>
+                        <td>{{ category.book_count }}</td>
+                        <td>
+                            <div class="table-actions">
+                                <button type="button" class="action-btn edit edit-category" 
+                                        data-id="{{ category.id }}"
+                                        data-name="{{ category.name }}"
+                                        data-description="{{ category.description or '' }}"
+                                        title="Sửa danh mục">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="action-btn delete delete-category" 
+                                        data-id="{{ category.id }}"
+                                        data-name="{{ category.name }}"
+                                        title="Xóa danh mục">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if total_pages > 1 %}
+        <div class="pagination-container">
+            <ul class="pagination">
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for p in range(1, total_pages + 1) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="?page={{ p }}{% if search %}&search={{ search }}{% endif %}">
+                        {{ p }}
+                    </a>
+                </li>
+                {% endfor %}
+                
+                {% if page < total_pages %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-folder"></i>
+            </div>
+            <h4>Không tìm thấy danh mục nào</h4>
+            <p>Chưa có danh mục nào trong hệ thống hoặc không tìm thấy danh mục phù hợp với tìm kiếm.</p>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#categoryModal">
+                Thêm danh mục mới
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal thêm/sửa danh mục -->
+<div class="modal fade" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="categoryForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Thêm danh mục mới</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="categoryId" name="id">
+                    <div class="form-group mb-3">
+                        <label for="categoryName">Tên danh mục <span class="text-danger">*</span></label>
+                        <input type="text" id="categoryName" name="name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="categoryDescription">Mô tả</label>
+                        <textarea id="categoryDescription" name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryModal = document.getElementById('categoryModal');
+    const categoryForm = document.getElementById('categoryForm');
+    const modalTitle = categoryModal.querySelector('.modal-title');
+    const token = localStorage.getItem('access_token');
+    
+    if (!token) {
+        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+        return;
+    }
+    
+    // Handle form submission
+    categoryForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(categoryForm);
+        const categoryData = {
+            name: formData.get('name'),
+            description: formData.get('description')
+        };
+        
+        const categoryId = formData.get('id');
+        const isUpdate = !!categoryId;
+        const url = isUpdate ? `/api/categories/${categoryId}` : '/api/categories';
+        const method = isUpdate ? 'PUT' : 'POST';
+        
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+            
+            if (!response.ok) {
+                if (response.status === 401) {
+                    window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+                    return;
+                }
+                const error = await response.json();
+                throw new Error(error.detail || 'Không thể lưu danh mục');
+            }
+            
+            location.reload();
+        } catch (error) {
+            alert('Lỗi: ' + error.message);
+        }
+    });
+    
+    // Handle edit button clicks
+    document.querySelectorAll('.edit-category').forEach(button => {
+        button.addEventListener('click', function() {
+            const data = this.dataset;
+            modalTitle.textContent = 'Chỉnh sửa danh mục';
+            document.getElementById('categoryId').value = data.id;
+            document.getElementById('categoryName').value = data.name;
+            document.getElementById('categoryDescription').value = data.description;
+            
+            new bootstrap.Modal(categoryModal).show();
+        });
+    });
+    
+    // Handle delete button clicks
+    document.querySelectorAll('.delete-category').forEach(button => {
+        button.addEventListener('click', async function() {
+            const data = this.dataset;
+            if (confirm(`Bạn có chắc chắn muốn xóa danh mục "${data.name}"? Thao tác này sẽ xóa danh mục khỏi tất cả sách.`)) {
+                try {
+                    const response = await fetch(`/api/categories/${data.id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+                            return;
+                        }
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Không thể xóa danh mục');
+                    }
+                    
+                    // Remove row with animation
+                    const row = this.closest('tr');
+                    row.style.backgroundColor = '#ffe6e6';
+                    setTimeout(() => {
+                        row.style.transition = 'opacity 0.5s';
+                        row.style.opacity = '0';
+                        setTimeout(() => row.remove(), 500);
+                    }, 100);
+                    
+                } catch (error) {
+                    alert('Lỗi: ' + error.message);
+                }
+            }
+        });
+    });
+    
+    // Reset form when modal is closed
+    categoryModal.addEventListener('hidden.bs.modal', function() {
+        categoryForm.reset();
+        document.getElementById('categoryId').value = '';
+        modalTitle.textContent = 'Thêm danh mục mới';
+    });
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.admin-header-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.search-filter {
+    flex: 1;
+    max-width: 400px;
+}
+
+.search-form .input-group {
+    display: flex;
+}
+
+.search-form .form-control {
+    border-radius: 4px 0 0 4px;
+}
+
+.search-form .btn {
+    border-radius: 0 4px 4px 0;
+}
+
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.pagination {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.page-item {
+    margin: 0 0.25rem;
+}
+
+.page-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    color: var(--text-dark);
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.empty-state {
+    padding: 3rem;
+    text-align: center;
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background-color: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--text-light);
+}
+
+.empty-state h4 {
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-light);
+    margin-bottom: 1.5rem;
+}
+</style>
+{% endblock %}

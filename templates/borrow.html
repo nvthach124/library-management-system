@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Mượn sách - Thư Viện Tri Thức{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="/static/css/borrow.css">
+{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+    
+        
+            <div class="user-content">
+                <div class="borrow-header">
+                    <h2>Mượn sách mới</h2>
+                    <a href="/my-borrows" class="btn btn-outline-primary"><i class="fas fa-history"></i> Lịch sử mượn</a>
+                </div>
+                
+                {% if not can_create_order %}
+                <div class="alert alert-warning" role="alert">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Không thể tạo đơn mượn mới!</strong>
+                    <p>Bạn đã có {{ pending_orders }} đơn đang chờ duyệt và {{ active_orders }} đơn đang mượn. Hệ thống chỉ cho phép tối đa 2 đơn chờ duyệt và 3 đơn đang mượn cùng lúc.</p>
+                    <a href="/my-borrows" class="btn btn-sm btn-warning mt-2">Xem đơn mượn đang có</a>
+                </div>
+                {% else %}
+                <div class="borrow-instructions">
+                    <div class="instruction-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>Chọn sách bạn muốn mượn</h4>
+                            <p>Chọn tối đa 5 cuốn sách</p>
+                        </div>
+                    </div>
+                    <div class="instruction-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>Kiểm tra đơn mượn</h4>
+                            <p>Xem lại đơn mượn và thêm ghi chú nếu cần</p>
+                        </div>
+                    </div>
+                    <div class="instruction-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>Gửi đơn mượn</h4>
+                            <p>Đơn của bạn sẽ được quản trị viên duyệt</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="borrow-cart-wrapper">
+                    <div class="cart-preview" id="cart-preview">
+                        <div class="cart-header">
+                            <h5><i class="fas fa-shopping-cart"></i> Đơn mượn của bạn <span id="cart-count">(0)</span></h5>
+                        </div>
+                        <div class="cart-body">
+                            <div class="empty-cart" id="empty-cart">
+                                <i class="fas fa-shopping-basket"></i>
+                                <p>Chưa có sách nào trong đơn mượn</p>
+                            </div>
+                            <div class="cart-items" id="cart-items"></div>
+                        </div>
+                        <div class="cart-footer">
+                            <div class="form-group mb-3">
+                                <label for="notes">Ghi chú</label>
+                                <textarea id="notes" class="form-control" rows="3" placeholder="Thêm ghi chú cho đơn mượn (không bắt buộc)"></textarea>
+                            </div>
+                            <button class="btn btn-primary btn-lg w-100" id="submit-order" disabled>
+                                Gửi đơn mượn
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="books-selection">
+                        <div class="search-filters">
+                            <div class="input-group">
+                                <input type="text" id="search-input" class="form-control" placeholder="Tìm kiếm sách...">
+                                <button class="btn btn-primary" id="search-btn">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                            
+                            <select id="category-filter" class="form-select mt-2">
+                                <option value="">Tất cả thể loại</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="books-grid" id="books-grid">
+                            {% for book in books %}
+                            <div class="book-card" data-id="{{ book.id }}" data-title="{{ book.title }}" data-author="{{ book.author.name }}" data-image="{{ book.cover_image or '/static/images/book_default.svg' }}">
+                                <div class="book-cover-container">
+                                    <img src="{{ book.cover_image or '/static/images/book_default.svg' }}" alt="{{ book.title }}" class="book-cover">
+                                    <div class="book-badge available-count">{{ book.available_copies }} có sẵn</div>
+                                </div>
+                                <div class="book-info">
+                                    <h3 class="book-title">{{ book.title }}</h3>
+                                    <p class="book-author">{{ book.author.name }}</p>
+                                    <div class="book-meta">
+                                        <span class="book-status {% if book.available_copies > 0 %}available{% else %}unavailable{% endif %}">
+                                            {% if book.available_copies > 0 %}Có sẵn{% else %}Hết sách{% endif %}
+                                        </span>
+                                        <button class="btn btn-outline-primary btn-sm add-to-cart" data-book-id="{{ book.id }}" data-id="{{ book.id }}" {% if book.available_copies == 0 %}disabled{% endif %}>
+                                            <i class="fas fa-plus"></i> Thêm vào đơn
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize cart UI with a small delay to ensure CartManager is ready
+        setTimeout(() => {
+            if (typeof updateCartUI === 'function') {
+                updateCartUI();
+            }
+        }, 150);
+        
+        // Listen for cart changes to update UI immediately
+        if (typeof window.cartManager !== 'undefined') {
+            window.cartManager.addEventListener(() => {
+                if (typeof updateCartUI === 'function') {
+                    updateCartUI();
+                }
+            });
+        }
+        
+        // Also listen for the custom cartChanged event
+        window.addEventListener('cartChanged', () => {
+            if (typeof updateCartUI === 'function') {
+                updateCartUI();
+            }
+        });
+        
+        // Elements
+        const booksGrid = document.getElementById('books-grid');
+        const submitOrderBtn = document.getElementById('submit-order');
+        const searchInput = document.getElementById('search-input');
+        const searchBtn = document.getElementById('search-btn');
+        const categoryFilter = document.getElementById('category-filter');
+        const notesTextarea = document.getElementById('notes');
+        
+        // Event listeners
+        if (booksGrid) {
+            // Search
+            searchBtn.addEventListener('click', filterBooks);
+            searchInput.addEventListener('keyup', function(e) {
+                if (e.key === 'Enter') {
+                    filterBooks();
+                }
+            });
+            
+            // Category filter
+            categoryFilter.addEventListener('change', filterBooks);
+        }
+        
+        // Submit order
+        if (submitOrderBtn) {
+            submitOrderBtn.addEventListener('click', submitOrder);
+        }
+        
+        function filterBooks() {
+            const searchQuery = searchInput.value.toLowerCase();
+            const categoryId = categoryFilter.value;
+            
+            const bookCards = booksGrid.querySelectorAll('.book-card');
+            
+            bookCards.forEach(card => {
+                const title = card.dataset.title.toLowerCase();
+                const author = card.dataset.author.toLowerCase();
+                const matchesSearch = title.includes(searchQuery) || author.includes(searchQuery);
+                
+                // Get book categories (needs to be added to data attributes in template)
+                const categories = card.dataset.categories ? card.dataset.categories.split(',') : [];
+                const matchesCategory = !categoryId || categories.includes(categoryId);
+                
+                // For now, ignore category filter since we don't have categories in data attributes
+                const matchesCategory2 = !categoryId || true;
+                
+                if (matchesSearch && matchesCategory2) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+        
+        function submitOrder() {
+            // Get cart from localStorage
+            const cart = getCart();
+            
+            if (cart.length === 0) {
+                showNotification('Vui lòng chọn ít nhất 1 cuốn sách để mượn!', 'warning');
+                return;
+            }
+            
+            // Disable submit button to prevent double submission
+            submitOrderBtn.disabled = true;
+            submitOrderBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Đang xử lý...';
+            
+            // Prepare data
+            const bookIds = cart.map(book => parseInt(book.id));
+            const notes = notesTextarea.value.trim();
+            
+            // Get access token from cookie
+            const getCookie = (name) => {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+                return null;
+            };
+            
+            const accessToken = getCookie('access_token');
+            
+            // Submit API request
+            fetch('/api/borrow-orders/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify({
+                    book_ids: bookIds,
+                    notes: notes
+                }),
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.detail || 'Không thể tạo đơn mượn');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Show success message with SweetAlert
+                Swal.fire({
+                    title: 'Thành công!',
+                    text: 'Đơn mượn đã được tạo thành công! Đơn của bạn đang chờ quản trị viên duyệt.',
+                    icon: 'success',
+                    confirmButtonText: 'Xem đơn mượn của tôi',
+                    showCancelButton: true,
+                    cancelButtonText: 'Ở lại trang này'
+                }).then((result) => {
+                    // Clear cart after successful order
+                    clearCart();
+                    
+                    if (result.isConfirmed) {
+                        window.location.href = '/my-borrows';
+                    } else {
+                        // Reset the form
+                        notesTextarea.value = '';
+                        submitOrderBtn.disabled = true;
+                        submitOrderBtn.innerHTML = 'Gửi đơn mượn';
+                        updateCartUI();
+                    }
+                });
+            })
+            .catch(error => {
+                // Re-enable submit button
+                submitOrderBtn.disabled = false;
+                submitOrderBtn.innerHTML = 'Gửi đơn mượn';
+                
+                // Show error notification
+                showNotification('Lỗi: ' + error.message, 'error');
+            });
+        }
+    });
+</script>
+{% endblock %} 
+ 

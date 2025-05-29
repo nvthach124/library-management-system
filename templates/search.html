@@ -1,0 +1,1193 @@
+{% extends "base.html" %}
+
+{% block title %}Tìm kiếm sách - Thư Viện Tri Thức{% endblock %}
+
+{% if fetch_books_only %}
+<!-- Return only books data for AJAX requests -->
+    {# Nếu chỉ tải phần sách, chỉ hiển thị phần cần thiết #}
+    {% if books and books|length > 0 %}
+    <div class="books-grid">
+        {% for book in books %}
+        <div class="book-card" 
+             data-id="{{ book.id }}" 
+             data-title="{{ book.title }}" 
+             data-author="{{ book.author.name }}" 
+             data-image="{{ book.cover_image if book.cover_image else '/static/images/book_default.jpg' }}">
+            <img src="{{ book.cover_image if book.cover_image else '/static/images/book_default.jpg' }}" alt="{{ book.title }}" class="book-cover">
+            <div class="book-info">
+                <h3 class="book-title">
+                    <a href="/books/{{ book.id }}">{{ book.title }}</a>
+                </h3>
+                <p class="book-author">{{ book.author.name }}</p>
+                <div class="book-status {{ 'available' if book.available_copies > 0 else 'unavailable' }}">
+                    {{ book.available_copies }} / {{ book.total_copies }} bản có sẵn
+                </div>
+                <button class="add-to-cart {{ 'in-cart' if book.id|string in cart_items else '' }}" 
+                        data-book-id="{{ book.id }}" 
+                        {{ 'disabled' if book.available_copies <= 0 or book.id|string in cart_items else '' }}>
+                    {% if book.id|string in cart_items %}
+                        <i class="fas fa-check"></i> Đã thêm
+                    {% elif book.available_copies == 0 %}
+                        <i class="fas fa-times"></i> Hết sách
+                    {% else %}
+                        <i class="fas fa-plus"></i> Thêm vào đơn
+                    {% endif %}
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination links -->
+    {% if pagination.total_pages > 1 %}
+    <div class="pagination">
+        {% if pagination.has_prev %}
+        <a href="javascript:void(0);" onclick="loadPage({{ pagination.prev_page }})" class="pagination-link">
+            <i class="fas fa-chevron-left"></i>
+        </a>
+        {% endif %}
+        
+        {% for page_num in pagination.iter_pages() %}
+            {% if page_num %}
+                {% if page_num == pagination.page %}
+                <span class="pagination-link active">{{ page_num }}</span>
+                {% else %}
+                <a href="javascript:void(0);" onclick="loadPage({{ page_num }})" class="pagination-link">{{ page_num }}</a>
+                {% endif %}
+            {% else %}
+                <span class="pagination-ellipsis">...</span>
+            {% endif %}
+        {% endfor %}
+        
+        {% if pagination.has_next %}
+        <a href="javascript:void(0);" onclick="loadPage({{ pagination.next_page }})" class="pagination-link">
+            <i class="fas fa-chevron-right"></i>
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="no-results">
+        <i class="fas fa-search fa-3x"></i>
+        <h3>Không tìm thấy sách nào</h3>
+        <p>Vui lòng thử lại với các tiêu chí tìm kiếm khác</p>
+    </div>
+    {% endif %}
+{% else %}
+    {% block styles %}
+    <style>
+        .search-container {
+            display: flex;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-color-dark, #2563eb);
+        }
+        
+        .w-100 {
+            width: 100%;
+        }
+        
+        .mt-3 {
+            margin-top: 1rem;
+        }
+        
+        /* Sidebar filters */
+        .filter-sidebar {
+            width: 280px;
+            flex-shrink: 0;
+        }
+        
+        .filter-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .filter-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin: 0;
+        }
+        
+        .filter-reset {
+            color: var(--primary-color);
+            background: none;
+            border: none;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        .filter-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .filter-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .filter-section-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--text-dark);
+        }
+        
+        .filter-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .filter-item {
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .filter-item label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+        
+        .filter-item input[type="checkbox"] {
+            margin-right: 0.5rem;
+            cursor: pointer;
+        }
+        
+        .filter-item .count {
+            margin-left: auto;
+            font-size: 0.8rem;
+            color: var(--text-light);
+            background-color: #f3f4f6;
+            padding: 0.1rem 0.4rem;
+            border-radius: 10px;
+        }
+        
+        .filter-search {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+        
+        .filter-search input {
+            width: 100%;
+            padding: 0.5rem 2rem 0.5rem 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .filter-search button {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+        }
+        
+        /* Main content */
+        .main-content {
+            flex: 1;
+        }
+        
+        .search-header {
+            margin-bottom: 1.5rem;
+        }
+        
+        .search-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .search-bar {
+            display: flex;
+            margin-bottom: 1.5rem;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-right: 0;
+            border-radius: 8px 0 0 8px;
+            font-size: 1rem;
+        }
+        
+        .search-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0 1.5rem;
+            border-radius: 0 8px 8px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .search-button i {
+            font-size: 1.2rem;
+        }
+        
+        .search-results {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .search-results h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--text-dark);
+        }
+        
+        .sort-dropdown {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .sort-dropdown select {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .active-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .filter-tag {
+            background-color: #e0f2fe;
+            color: #0277bd;
+            padding: 0.25rem 0.5rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .filter-tag button {
+            background: none;
+            border: none;
+            color: #0277bd;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 0.25rem;
+            font-size: 0.7rem;
+        }
+        
+        .books-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        /* Book card styles are now in cards.css */
+        
+        .book-cover {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        
+        .book-info {
+            text-align: left;
+        }
+        
+        .book-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+        
+        .book-title a {
+            color: var(--text-dark);
+            text-decoration: none;
+        }
+        
+        .book-title a:hover {
+            color: var(--primary-color);
+        }
+        
+        .book-author {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .book-status {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            margin-bottom: 0.75rem;
+        }
+        
+        .book-status.available {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        
+        .book-status.unavailable {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .add-to-cart {
+            width: 100%;
+            padding: 0.5rem 1rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .add-to-cart:hover {
+            background-color: var(--primary-color-dark, #2563eb);
+        }
+        
+        .add-to-cart.in-cart {
+            background-color: #059669;
+        }
+        
+        .add-to-cart:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+        
+        .pagination-link {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            background-color: white;
+            color: var(--text-dark);
+            text-decoration: none;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .pagination-link:hover {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .pagination-link.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .pagination-ellipsis {
+            padding: 0.5rem 0.75rem;
+            color: var(--text-light);
+        }
+        
+        /* No results */
+        .no-results {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-light);
+        }
+        
+        .no-results i {
+            margin-bottom: 1rem;
+            color: #d1d5db;
+        }
+        
+        .no-results h3 {
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            text-align: center;
+            padding: 2rem;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+        
+        .loading-spinner i {
+            animation: spin 1s infinite linear;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .search-container {
+                flex-direction: column;
+            }
+            
+            .filter-sidebar {
+                width: 100%;
+            }
+            
+            .books-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+        }
+    </style>
+    {% endblock %}
+
+    {% block content %}
+    <div class="search-container">
+        <!-- Sidebar with filters -->
+        <div class="filter-sidebar">
+            <div class="filter-card">
+                <div class="filter-header">
+                    <h3 class="filter-title">Bộ lọc tìm kiếm</h3>
+                    <button type="button" class="filter-reset" id="reset-all-filters">Xóa bộ lọc</button>
+                </div>
+                
+                <!-- Thể loại filter -->
+                <div class="filter-section">
+                    <h4 class="filter-section-title">Thể loại</h4>
+                    <div class="filter-search">
+                        <input type="text" placeholder="Tìm thể loại" id="category-search">
+                        <button type="button"><i class="fas fa-search"></i></button>
+                    </div>
+                    <ul class="filter-list" id="category-list">
+                        {% for category in categories %}
+                        <li class="filter-item">
+                            <label>
+                                <input type="checkbox" name="category" value="{{ category.id }}" {% if selected_categories and category.id|string in selected_categories %}checked{% endif %} class="filter-checkbox">
+                                {{ category.name }}
+                                <span class="count">{{ category.book_count if category.book_count is defined else '0' }}</span>
+                            </label>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                
+                <!-- Tác giả filter -->
+                <div class="filter-section">
+                    <h4 class="filter-section-title">Tác giả</h4>
+                    <div class="filter-search">
+                        <input type="text" placeholder="Tìm tác giả" id="author-search">
+                        <button type="button"><i class="fas fa-search"></i></button>
+                    </div>
+                    <ul class="filter-list" id="author-list">
+                        {% for author in authors %}
+                        <li class="filter-item">
+                            <label>
+                                <input type="checkbox" name="author" value="{{ author.id }}" {% if selected_authors and author.id|string in selected_authors %}checked{% endif %} class="filter-checkbox">
+                                {{ author.name }}
+                                <span class="count">{{ author.book_count if author.book_count is defined else '0' }}</span>
+                            </label>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                
+                <!-- Nhà xuất bản filter -->
+                <div class="filter-section">
+                    <h4 class="filter-section-title">Nhà xuất bản</h4>
+                    <div class="filter-search">
+                        <input type="text" placeholder="Tìm nhà xuất bản" id="publisher-search">
+                        <button type="button"><i class="fas fa-search"></i></button>
+                    </div>
+                    <ul class="filter-list" id="publisher-list">
+                        {% for publisher in publishers %}
+                        <li class="filter-item">
+                            <label>
+                                <input type="checkbox" name="publisher" value="{{ publisher.id }}" {% if selected_publishers and publisher.id|string in selected_publishers %}checked{% endif %} class="filter-checkbox">
+                                {{ publisher.name }}
+                                <span class="count">{{ publisher.book_count if publisher.book_count is defined else '0' }}</span>
+                            </label>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                
+                <!-- Trạng thái filter -->
+                <div class="filter-section">
+                    <h4 class="filter-section-title">Trạng thái sách</h4>
+                    <ul class="filter-list">
+                        <li class="filter-item">
+                            <label>
+                                <input type="radio" name="availability" value="all" {% if availability == 'all' or not availability %}checked{% endif %} class="filter-checkbox">
+                                Tất cả
+                            </label>
+                        </li>
+                        <li class="filter-item">
+                            <label>
+                                <input type="radio" name="availability" value="available" {% if availability == 'available' %}checked{% endif %} class="filter-checkbox">
+                                Có sẵn
+                            </label>
+                        </li>
+                        <li class="filter-item">
+                            <label>
+                                <input type="radio" name="availability" value="unavailable" {% if availability == 'unavailable' %}checked{% endif %} class="filter-checkbox">
+                                Đã hết
+                            </label>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div class="main-content">
+            <div class="search-header">
+                <h1 class="search-title">Tìm kiếm sách</h1>
+                
+                <!-- Search bar -->
+                <form class="search-bar" id="search-form">
+                    <input type="text" class="search-input" placeholder="Nhập tên sách, tác giả hoặc từ khóa..." 
+                           value="{{ query if query else '' }}" id="search-input">
+                    <button type="submit" class="search-button">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Search results and sorting -->
+            <div class="search-results">
+                <h2>
+                    {% if query %}
+                        Kết quả tìm kiếm cho "{{ query }}" ({{ count }} sách)
+                    {% else %}
+                        Tất cả sách trong thư viện ({{ count }} sách)
+                    {% endif %}
+                </h2>
+                
+                <div class="sort-dropdown">
+                    <label for="sort-order">Sắp xếp:</label>
+                    <select id="sort-order">
+                        <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Mới nhất</option>
+                        <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>Cũ nhất</option>
+                        <option value="title-asc" {% if sort == 'title-asc' %}selected{% endif %}>Tên A-Z</option>
+                        <option value="title-desc" {% if sort == 'title-desc' %}selected{% endif %}>Tên Z-A</option>
+                        <option value="author-asc" {% if sort == 'author-asc' %}selected{% endif %}>Tác giả A-Z</option>
+                        <option value="author-desc" {% if sort == 'author-desc' %}selected{% endif %}>Tác giả Z-A</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Active filters -->
+            <div class="active-filters" id="active-filters">
+                <!-- Filter tags will be inserted here by JavaScript -->
+            </div>
+
+            <!-- Books container -->
+            <div id="books-container">
+                {% if books and books|length > 0 %}
+                <div class="books-grid" id="books-grid">
+                    {% for book in books %}
+                    <div class="book-card" 
+                         data-id="{{ book.id }}" 
+                         data-title="{{ book.title }}" 
+                         data-author="{{ book.author.name }}" 
+                         data-image="{{ book.cover_image if book.cover_image else '/static/images/book_default.jpg' }}">
+                        <img src="{{ book.cover_image if book.cover_image else '/static/images/book_default.jpg' }}" alt="{{ book.title }}" class="book-cover">
+                        <div class="book-info">
+                            <h3 class="book-title">
+                                <a href="/books/{{ book.id }}">{{ book.title }}</a>
+                            </h3>
+                            <p class="book-author">{{ book.author.name }}</p>
+                            <div class="book-status {{ 'available' if book.available_copies > 0 else 'unavailable' }}">
+                                {{ book.available_copies }} / {{ book.total_copies }} bản có sẵn
+                            </div>
+                            <button class="add-to-cart {{ 'in-cart' if book.id|string in cart_items else '' }}" 
+                                    data-book-id="{{ book.id }}" 
+                                    {{ 'disabled' if book.available_copies <= 0 or book.id|string in cart_items else '' }}>
+                                {% if book.id|string in cart_items %}
+                                    <i class="fas fa-check"></i> Đã thêm
+                                {% elif book.available_copies == 0 %}
+                                    <i class="fas fa-times"></i> Hết sách
+                                {% else %}
+                                    <i class="fas fa-plus"></i> Thêm vào đơn
+                                {% endif %}
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Pagination -->
+                {% if total_pages > 1 %}
+                <div class="pagination">
+                    {% if page > 1 %}
+                    <a href="javascript:void(0);" onclick="loadPage({{ page - 1 }})" class="pagination-link">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, total_pages + 1) %}
+                        {% if page_num == page %}
+                        <span class="pagination-link active">{{ page_num }}</span>
+                        {% elif page_num <= 3 or page_num > total_pages - 3 or (page_num >= page - 1 and page_num <= page + 1) %}
+                        <a href="javascript:void(0);" onclick="loadPage({{ page_num }})" class="pagination-link">{{ page_num }}</a>
+                        {% elif page_num == 4 or page_num == total_pages - 3 %}
+                        <span class="pagination-ellipsis">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page < total_pages %}
+                    <a href="javascript:void(0);" onclick="loadPage({{ page + 1 }})" class="pagination-link">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="no-results">
+                    <i class="fas fa-search fa-3x"></i>
+                    <h3>Không tìm thấy sách nào</h3>
+                    <p>Vui lòng thử lại với các tiêu chí tìm kiếm khác</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize CartManager for synchronization
+        if (typeof CartManager !== 'undefined' && !window.cartManager) {
+            window.cartManager = new CartManager();
+        }
+        
+        // Store a persistent reference to the original container
+        const originalBooksContainer = document.getElementById('books-container');
+        let booksContainer = originalBooksContainer;
+        
+        // Helper function to reset the booksContainer reference
+        function resetBooksContainer() {
+            booksContainer = originalBooksContainer;
+            return booksContainer;
+        }
+
+        // Function to setup cart buttons for newly loaded content
+        function setupNewCartButtons() {
+            const buttons = document.querySelectorAll('.add-to-cart');
+            buttons.forEach(button => {
+                // Check if button already has event listener
+                if (button.hasAttribute('data-cart-listener')) {
+                    return;
+                }
+                
+                // Mark button as having listener
+                button.setAttribute('data-cart-listener', 'true');
+                
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const bookId = this.getAttribute('data-book-id');
+                    
+                    if (bookId && typeof window.cartManager !== 'undefined') {
+                        // Get book data from the card
+                        const bookCard = this.closest('.book-card');
+                        if (bookCard) {
+                            const bookData = {
+                                id: bookId,
+                                title: bookCard.getAttribute('data-title'),
+                                author: bookCard.getAttribute('data-author'),
+                                image: bookCard.getAttribute('data-image')
+                            };
+                            
+                            const result = window.cartManager.addBook(bookData);
+                            
+                            if (result.success) {
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Thành công!',
+                                        text: result.message,
+                                        timer: 1500,
+                                        showConfirmButton: false
+                                    });
+                                } else {
+                                    alert(result.message);
+                                }
+                            } else {
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        icon: 'warning',
+                                        title: 'Thông báo',
+                                        text: result.message
+                                    });
+                                } else {
+                                    alert(result.message);
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        // Các phần tử DOM
+        const searchForm = document.getElementById('search-form');
+        const searchInput = document.getElementById('search-input');
+        const categorySearch = document.getElementById('category-search');
+        const authorSearch = document.getElementById('author-search');
+        const publisherSearch = document.getElementById('publisher-search');
+        const resetAllFiltersBtn = document.getElementById('reset-all-filters');
+        const sortOrder = document.getElementById('sort-order');
+        const categoryList = document.getElementById('category-list');
+        const authorList = document.getElementById('author-list');
+        const publisherList = document.getElementById('publisher-list');
+        const activeFiltersContainer = document.getElementById('active-filters');
+        
+        // CSS cho nút Áp dụng bộ lọc
+        const btnStyle = document.createElement('style');
+        btnStyle.innerHTML = `
+            .btn-primary {
+                background-color: var(--primary-color);
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 0.5rem 1rem;
+                font-size: 1rem;
+                cursor: pointer;
+                transition: background-color 0.2s;
+            }
+            .btn-primary:hover {
+                background-color: var(--primary-color-dark, #2563eb);
+            }
+            .w-100 {
+                width: 100%;
+            }
+            .mt-3 {
+                margin-top: 1rem;
+            }
+        `;
+        document.head.appendChild(btnStyle);
+        
+        // Thêm hướng dẫn sử dụng bộ lọc
+        const filterGuide = document.createElement('div');
+        filterGuide.style.padding = '0.75rem';
+        filterGuide.style.fontSize = '0.875rem';
+        filterGuide.style.color = '#666';
+        filterGuide.style.marginTop = '1rem';
+        filterGuide.style.backgroundColor = '#f0f4f8';
+        filterGuide.style.borderRadius = '0.375rem';
+        filterGuide.innerHTML = 'Chọn các bộ lọc mong muốn rồi nhấn nút "Áp dụng bộ lọc" để cập nhật kết quả';
+        
+        // Thêm nút Áp dụng bộ lọc
+        const applyFiltersBtn = document.createElement('button');
+        applyFiltersBtn.className = 'btn btn-primary w-100 mt-3';
+        applyFiltersBtn.style.padding = '0.75rem';
+        applyFiltersBtn.style.fontWeight = 'bold';
+        applyFiltersBtn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+        applyFiltersBtn.innerHTML = '<i class="fas fa-filter"></i> Áp dụng bộ lọc';
+        applyFiltersBtn.addEventListener('click', applyFilters);
+        
+        // Thêm các phần tử vào filter card
+        const filterCard = document.querySelector('.filter-card');
+        filterCard.appendChild(filterGuide);
+        filterCard.appendChild(applyFiltersBtn);
+        
+        // Xử lý dropdown sắp xếp
+        if (sortOrder) {
+            sortOrder.addEventListener('change', function() {
+                // Tự động áp dụng bộ lọc khi thay đổi sắp xếp
+                applyFilters();
+            });
+        }
+        
+        // Xử lý sự kiện submit của form tìm kiếm
+        if (searchForm) {
+            searchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                applyFilters();
+            });
+        }
+        
+        // Xử lý search trong filters
+        setupFilterSearch(categorySearch, categoryList);
+        setupFilterSearch(authorSearch, authorList);
+        setupFilterSearch(publisherSearch, publisherList);
+        
+        // Xử lý nút reset filters
+        resetAllFiltersBtn.addEventListener('click', function() {
+            // Bỏ chọn tất cả các checkbox
+            filterCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            // Reset search input
+            searchInput.value = '';
+            
+            // Áp dụng lọc (về mặc định)
+            applyFilters();
+        });
+        
+        // Hiển thị các filter hiện tại
+        updateActiveFilters();
+        
+        // Hàm thiết lập tìm kiếm cho filters
+        function setupFilterSearch(searchInput, filterList) {
+            if (!searchInput || !filterList) return;
+            
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const items = filterList.querySelectorAll('.filter-item');
+                
+                items.forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // Hàm xử lý áp dụng filters sử dụng AJAX để chỉ cập nhật danh sách sách
+        function applyFilters() {
+            // Đảm bảo sử dụng container gốc
+            booksContainer = resetBooksContainer();
+            
+            // Hiển thị loading
+            booksContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Đang tải sách...</div>';
+            
+            // Xây dựng URL với các tham số filter
+            const url = new URL(window.location.href);
+            
+            // Lấy giá trị tìm kiếm
+            const searchQuery = searchInput.value.trim();
+            if (searchQuery) {
+                url.searchParams.set('q', searchQuery);
+            } else {
+                url.searchParams.delete('q');
+            }
+            
+            // Lấy các giá trị category được chọn
+            const selectedCategories = Array.from(document.querySelectorAll('input[name="category"]:checked'))
+                .map(checkbox => checkbox.value);
+            if (selectedCategories.length > 0) {
+                url.searchParams.set('category', selectedCategories.join(','));
+            } else {
+                url.searchParams.delete('category');
+            }
+            
+            // Lấy các giá trị author được chọn
+            const selectedAuthors = Array.from(document.querySelectorAll('input[name="author"]:checked'))
+                .map(checkbox => checkbox.value);
+            if (selectedAuthors.length > 0) {
+                url.searchParams.set('author', selectedAuthors.join(','));
+            } else {
+                url.searchParams.delete('author');
+            }
+            
+            // Lấy các giá trị publisher được chọn
+            const selectedPublishers = Array.from(document.querySelectorAll('input[name="publisher"]:checked'))
+                .map(checkbox => checkbox.value);
+            if (selectedPublishers.length > 0) {
+                url.searchParams.set('publisher', selectedPublishers.join(','));
+            } else {
+                url.searchParams.delete('publisher');
+            }
+            
+            // Lấy giá trị availability được chọn
+            const selectedAvailability = document.querySelector('input[name="availability"]:checked')?.value;
+            if (selectedAvailability && selectedAvailability !== 'all') {
+                url.searchParams.set('availability', selectedAvailability);
+            } else {
+                url.searchParams.delete('availability');
+            }
+            
+            // Lấy giá trị sắp xếp
+            const sortValue = sortOrder ? sortOrder.value : null;
+            if (sortValue) {
+                url.searchParams.set('sort', sortValue);
+            } else {
+                url.searchParams.delete('sort');
+            }
+            
+            // Reset page về 1 khi lọc
+            url.searchParams.set('page', '1');
+            
+            // Thêm tham số chỉ để tải sách (không làm mới bộ lọc)
+            url.searchParams.set('fetch_books_only', 'true');
+            
+            // Sử dụng fetch API để tải sách mà không làm mới trang
+            fetch(url.toString())
+                .then(response => response.text())
+                .then(html => {
+                    // Cập nhật nội dung sách
+                    // Tạo một DOM tạm thời để phân tích HTML
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    
+                    // Lấy phần tử .books-grid hoặc nội dung thông báo không có kết quả
+                    const newBooksGrid = tempDiv.querySelector('.books-grid') || tempDiv.querySelector('.no-results');
+                    const paginationElement = tempDiv.querySelector('.pagination');
+                    
+                    // Chỉ cập nhật phần nội dung sách và phân trang, không cập nhật toàn bộ
+                    if (newBooksGrid) {
+                        // Xóa nội dung hiện tại và thêm nội dung mới
+                        booksContainer.innerHTML = '';
+                        booksContainer.appendChild(newBooksGrid);
+                        
+                        // Thêm phần tử phân trang nếu có
+                        if (paginationElement) {
+                            booksContainer.appendChild(paginationElement);
+                        }
+                    } else {
+                        // Nếu không tìm thấy nội dung sách, hiển thị toàn bộ phản hồi
+                        booksContainer.innerHTML = html;
+                    }
+                    
+                    // Cập nhật URL trên trình duyệt mà không làm mới trang
+                    const newUrl = new URL(url);
+                    newUrl.searchParams.delete('fetch_books_only');
+                    window.history.pushState({}, '', newUrl.toString());
+                    
+                    
+                    
+                    // Sync cart buttons với cart manager
+                    if (typeof window.cartManager !== 'undefined') {
+                        window.cartManager.updateAllButtons();
+                    }
+                    // Setup event listeners for new cart buttons
+                    setupNewCartButtons();
+                    // Cập nhật hiển thị filters và khởi tạo lại sự kiện
+                    updateActiveFilters();
+                })
+                .catch(error => {
+                    console.error('Error applying filters:', error);
+                    booksContainer.innerHTML = '<div class="error-message">Có lỗi xảy ra khi tải sách. Vui lòng thử lại.</div>';
+                });
+        }
+        
+        // Hàm tải trang mới khi click vào phân trang
+        window.loadPage = function(pageNum) {
+            // Đảm bảo sử dụng container gốc
+            booksContainer = resetBooksContainer();
+            
+            // Xây dựng URL với các tham số hiện tại
+            const url = new URL(window.location.href);
+            
+            // Đặt trang mới
+            url.searchParams.set('page', pageNum);
+            
+            // Thêm tham số chỉ để tải sách
+            url.searchParams.set('fetch_books_only', 'true');
+            
+            // Hiển thị loading
+            booksContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Đang tải sách...</div>';
+            
+            // Sử dụng fetch API để tải trang mới
+            fetch(url.toString())
+                .then(response => response.text())
+                .then(html => {
+                    // Cập nhật nội dung sách
+                    // Tạo một DOM tạm thời để phân tích HTML
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    
+                    // Lấy phần tử .books-grid hoặc nội dung thông báo không có kết quả
+                    const newBooksGrid = tempDiv.querySelector('.books-grid') || tempDiv.querySelector('.no-results');
+                    const paginationElement = tempDiv.querySelector('.pagination');
+                    
+                    // Chỉ cập nhật phần nội dung sách và phân trang, không cập nhật toàn bộ
+                    if (newBooksGrid) {
+                        // Xóa nội dung hiện tại và thêm nội dung mới
+                        booksContainer.innerHTML = '';
+                        booksContainer.appendChild(newBooksGrid);
+                        
+                        // Thêm phần tử phân trang nếu có
+                        if (paginationElement) {
+                            booksContainer.appendChild(paginationElement);
+                        }
+                    } else {
+                        // Nếu không tìm thấy nội dung sách, hiển thị toàn bộ phản hồi
+                        booksContainer.innerHTML = html;
+                    }
+                    
+                    // Cập nhật URL trên trình duyệt mà không làm mới trang
+                    const newUrl = new URL(url);
+                    newUrl.searchParams.delete('fetch_books_only');
+                    window.history.pushState({}, '', newUrl.toString());
+                    
+                    
+                    
+                    // Sync cart buttons với cart manager
+                    if (typeof window.cartManager !== 'undefined') {
+                        window.cartManager.updateAllButtons();
+                    }
+                    // Setup event listeners for new cart buttons
+                    setupNewCartButtons();
+                    // Khởi tạo lại sự kiện cho nút thêm vào đơn và phân trang
+                    setupPaginationLinks();
+                    // Cuộn lên đầu phần nội dung sách
+                    booksContainer.scrollIntoView({ behavior: 'smooth' });
+                })
+                .catch(error => {
+                    console.error('Error loading page:', error);
+                    booksContainer.innerHTML = '<div class="error-message">Có lỗi xảy ra khi tải sách. Vui lòng thử lại.</div>';
+                });
+        }
+        
+        // Hàm thiết lập sự kiện cho các liên kết phân trang
+        function setupPaginationLinks() {
+            // Đảm bảo các liên kết phân trang sử dụng AJAX
+            const paginationLinks = document.querySelectorAll('.pagination-link');
+            paginationLinks.forEach(link => {
+                // Xóa các event listener cũ trước khi thêm mới để tránh đệ quy
+                const newLink = link.cloneNode(true);
+                link.parentNode.replaceChild(newLink, link);
+                
+                // Chỉ thêm listener khi không có sẵn attribute onclick
+                if (!newLink.getAttribute('onclick')) {
+                    newLink.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const pageNum = this.textContent.trim();
+                        if (pageNum && !isNaN(pageNum)) {
+                            loadPage(parseInt(pageNum));
+                        }
+                    });
+                }
+            });
+            
+            // Đảm bảo luôn sử dụng container gốc
+            resetBooksContainer();
+        }
+        
+        // Khởi tạo sự kiện cho các liên kết phân trang
+        setupPaginationLinks();
+        
+        // Removed redundant cart functions - now handled by CartManager
+        
+        // Hiển thị các filter hiện tại
+        function updateActiveFilters() {
+            // Reset container references
+            resetBooksContainer();
+            
+            if (!activeFiltersContainer) return;
+            
+            activeFiltersContainer.innerHTML = '';
+            
+            // Hiển thị từ khóa tìm kiếm
+            const searchQuery = searchInput.value.trim();
+            if (searchQuery) {
+                addFilterTag('Từ khóa: ' + searchQuery, function() {
+                    searchInput.value = '';
+                    applyFilters();
+                });
+            }
+            
+            // Hiển thị các category đã chọn
+            document.querySelectorAll('input[name="category"]:checked').forEach(checkbox => {
+                const categoryName = checkbox.closest('label').textContent.trim();
+                addFilterTag('Thể loại: ' + categoryName.replace(/\d+/g, '').trim(), function() {
+                    checkbox.checked = false;
+                    applyFilters();
+                });
+            });
+            
+            // Hiển thị các author đã chọn
+            document.querySelectorAll('input[name="author"]:checked').forEach(checkbox => {
+                const authorName = checkbox.closest('label').textContent.trim();
+                addFilterTag('Tác giả: ' + authorName.replace(/\d+/g, '').trim(), function() {
+                    checkbox.checked = false;
+                    applyFilters();
+                });
+            });
+            
+            // Hiển thị các publisher đã chọn
+            document.querySelectorAll('input[name="publisher"]:checked').forEach(checkbox => {
+                const publisherName = checkbox.closest('label').textContent.trim();
+                addFilterTag('NXB: ' + publisherName.replace(/\d+/g, '').trim(), function() {
+                    checkbox.checked = false;
+                    applyFilters();
+                });
+            });
+            
+            // Hiển thị trạng thái sách đã chọn
+            const availabilityInput = document.querySelector('input[name="availability"]:checked');
+            if (availabilityInput && availabilityInput.value !== 'all') {
+                const availabilityText = availabilityInput.value === 'available' ? 'Có sẵn' : 'Đã hết';
+                addFilterTag('Trạng thái: ' + availabilityText, function() {
+                    document.querySelector('input[name="availability"][value="all"]').checked = true;
+                    applyFilters();
+                });
+            }
+        }
+        
+        // Tạo một filter tag
+        function addFilterTag(text, onRemove) {
+            const tag = document.createElement('div');
+            tag.className = 'filter-tag';
+            tag.innerHTML = text + '<button type="button"><i class="fas fa-times"></i></button>';
+            
+            tag.querySelector('button').addEventListener('click', onRemove);
+            
+            activeFiltersContainer.appendChild(tag);
+        }
+        
+        // Khởi tạo CartManager khi trang tải xong
+        if (typeof window.cartManager !== 'undefined') {
+            window.cartManager.updateAllButtons();
+        }
+        // Setup initial cart buttons
+        setupNewCartButtons();
+    });
+    </script>
+    {% endblock %}
+{% endif %}
